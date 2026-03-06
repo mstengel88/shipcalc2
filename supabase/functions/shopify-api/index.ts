@@ -32,7 +32,7 @@ serve(async (req) => {
     });
   }
 
-  const storefrontUrl = `https://${SHOPIFY_STORE_DOMAIN}/api/2024-01/graphql.json`;
+  const storefrontUrl = `https://${SHOPIFY_STORE_DOMAIN}/api/2026-01/graphql.json`;
 
   async function storefrontQuery(query: string, variables?: Record<string, unknown>) {
     const res = await fetch(storefrontUrl, {
