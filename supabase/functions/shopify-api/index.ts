@@ -66,7 +66,7 @@ serve(async (req) => {
     switch (action) {
       case "products": {
         const limit = parseInt(url.searchParams.get("limit") || "50", 10);
-        const data = await storefrontQuery(`
+        const data = await adminQuery(`
           query Products($first: Int!) {
             products(first: $first) {
               edges {
@@ -80,10 +80,7 @@ serve(async (req) => {
                       node {
                         id
                         title
-                        price {
-                          amount
-                          currencyCode
-                        }
+                        price
                         weight
                         weightUnit
                         sku
