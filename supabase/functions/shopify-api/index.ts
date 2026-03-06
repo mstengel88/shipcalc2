@@ -32,6 +32,10 @@ serve(async (req) => {
     });
   }
 
+  console.log("Domain:", SHOPIFY_STORE_DOMAIN);
+  console.log("Token prefix:", STOREFRONT_TOKEN.substring(0, 10) + "...");
+  console.log("Token length:", STOREFRONT_TOKEN.length);
+
   const storefrontUrl = `https://${SHOPIFY_STORE_DOMAIN}/api/2026-01/graphql.json`;
 
   async function storefrontQuery(query: string, variables?: Record<string, unknown>) {
