@@ -1,16 +1,56 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { MapPin, DollarSign, Loader2, Clock, Route, ArrowLeftRight } from "lucide-react";
+import { MapPin, DollarSign, Loader2, Clock } from "lucide-react";
 import { getDriveTimeQuote, type DriveTimeQuoteResponse } from "@/lib/shopify-api";
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 const ShippingCostCalculator = () => {
   const [destination, setDestination] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<DriveTimeQuoteResponse | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<any>(null);
+
+  useEffect(() => {
+    const initAutocomplete = () => {
+      if (!inputRef.current || !window.google?.maps?.places) return;
+      if (autocompleteRef.current) return;
+
+      autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+        types: ["address"],
+        componentRestrictions: { country: "us" },
+      });
+
+      autocompleteRef.current.addListener("place_changed", () => {
+        const place = autocompleteRef.current.getPlace();
+        if (place?.formatted_address) {
+          setDestination(place.formatted_address);
+        }
+      });
+    };
+
+    // Wait for Google Maps to load
+    if (window.google?.maps?.places) {
+      initAutocomplete();
+    } else {
+      const interval = setInterval(() => {
+        if (window.google?.maps?.places) {
+          initAutocomplete();
+          clearInterval(interval);
+        }
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, []);
 
   const handleCalculate = async () => {
     if (!destination.trim()) return;
@@ -46,7 +86,8 @@ const ShippingCostCalculator = () => {
             <MapPin className="h-3.5 w-3.5 text-primary" /> Delivery Address
           </Label>
           <Input
-            placeholder="e.g. 456 Oak Ave, Milwaukee, WI 53202"
+            ref={inputRef}
+            placeholder="Start typing an address..."
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCalculate()}
@@ -81,28 +122,6 @@ const ShippingCostCalculator = () => {
             <div className="flex items-center justify-between border-b border-border pb-3">
               <span className="text-sm font-medium text-muted-foreground">Destination</span>
               <span className="font-mono text-sm font-semibold text-right max-w-[60%]">{quote.destination}</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                <Route className="h-3.5 w-3.5" /> One-Way Distance
-              </span>
-              <span className="font-mono text-sm">{quote.one_way_distance_miles} mi</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" /> One-Way Drive Time
-              </span>
-              <span className="font-mono text-sm">{quote.one_way_duration_text}</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                <ArrowLeftRight className="h-3.5 w-3.5" /> Round-Trip Time
-              </span>
-              <span className="font-mono text-sm font-semibold">{quote.round_trip_minutes} min</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <span className="text-sm font-medium text-muted-foreground">Rate</span>
-              <span className="font-mono text-sm">${quote.rate_per_minute.toFixed(2)}/min</span>
             </div>
             <div className="flex items-center justify-between pt-1">
               <span className="text-lg font-heading font-bold">Total Cost</span>
