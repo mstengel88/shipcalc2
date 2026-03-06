@@ -1,7 +1,8 @@
-import { Truck, Package } from "lucide-react";
+import { Truck, Package, ShoppingBag } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ShippingCostCalculator from "@/components/ShippingCostCalculator";
 import MultiTruckCalculator from "@/components/MultiTruckCalculator";
+import ShopifyShippingQuote from "@/components/ShopifyShippingQuote";
 
 const Index = () => {
   return (
