@@ -299,26 +299,33 @@ serve(async (req) => {
           });
         }
 
-        // Call Google Maps Directions API
-        const mapsUrl = new URL("https://maps.googleapis.com/maps/api/directions/json");
-        mapsUrl.searchParams.set("origin", ORIGIN_ADDRESS);
-        mapsUrl.searchParams.set("destination", destination);
+        // Call Google Maps Distance Matrix API
+        const mapsUrl = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
+        mapsUrl.searchParams.set("origins", ORIGIN_ADDRESS);
+        mapsUrl.searchParams.set("destinations", destination);
         mapsUrl.searchParams.set("key", GOOGLE_MAPS_API_KEY);
         mapsUrl.searchParams.set("units", "imperial");
 
         const mapsRes = await fetch(mapsUrl.toString());
         const mapsData = await mapsRes.json();
 
-        if (mapsData.status !== "OK" || !mapsData.routes?.length) {
+        if (mapsData.status !== "OK") {
           return new Response(
             JSON.stringify({ error: `Google Maps error: ${mapsData.status}`, details: mapsData.error_message }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
-        const leg = mapsData.routes[0].legs[0];
-        const oneWaySeconds = leg.duration.value;
-        const oneWayMiles = leg.distance.value / 1609.34;
+        const element = mapsData.rows?.[0]?.elements?.[0];
+        if (!element || element.status !== "OK") {
+          return new Response(
+            JSON.stringify({ error: `No route found: ${element?.status || "UNKNOWN"}` }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const oneWaySeconds = element.duration.value;
+        const oneWayMiles = element.distance.value / 1609.34;
         const roundTripMinutes = (oneWaySeconds * 2) / 60;
         const totalCost = roundTripMinutes * RATE_PER_MINUTE;
 
