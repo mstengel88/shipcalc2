@@ -105,10 +105,7 @@ serve(async (req) => {
                       node {
                         id
                         title
-                        price {
-                          amount
-                          currencyCode
-                        }
+                        price
                         weight
                         weightUnit
                         sku
@@ -132,7 +129,7 @@ serve(async (req) => {
             variants: node.variants.edges.map((ve: any) => ({
               id: extractGid(ve.node.id),
               title: ve.node.title,
-              price: ve.node.price.amount,
+              price: ve.node.price,
               weight: ve.node.weight || 0,
               weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
               sku: ve.node.sku || "",
@@ -165,15 +162,12 @@ serve(async (req) => {
               variants(first: 100) {
                 edges {
                   node {
-                    id
-                    title
-                    price {
-                      amount
-                      currencyCode
-                    }
-                    weight
-                    weightUnit
-                    sku
+                        id
+                        title
+                        price
+                        weight
+                        weightUnit
+                        sku
                   }
                 }
               }
@@ -190,7 +184,7 @@ serve(async (req) => {
           variants: node.variants.edges.map((ve: any) => ({
             id: extractGid(ve.node.id),
             title: ve.node.title,
-            price: ve.node.price.amount,
+            price: ve.node.price,
             weight: ve.node.weight || 0,
             weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
             sku: ve.node.sku || "",
