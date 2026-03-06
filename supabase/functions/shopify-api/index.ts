@@ -80,7 +80,10 @@ serve(async (req) => {
                       node {
                         id
                         title
-                        price
+                        price {
+                          amount
+                          currencyCode
+                        }
                         weight
                         weightUnit
                         sku
