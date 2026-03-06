@@ -43,7 +43,7 @@ serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN!,
+        "Shopify-Storefront-Private-Token": STOREFRONT_TOKEN!,
       },
       body: JSON.stringify({ query, variables }),
     });
