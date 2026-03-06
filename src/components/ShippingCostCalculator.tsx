@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,32 @@ declare global {
   }
 }
 
+function loadGoogleMapsScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.google?.maps?.places) {
+      resolve();
+      return;
+    }
+    const existing = document.getElementById("google-maps-script");
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      return;
+    }
+    const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!key) {
+      reject(new Error("Missing VITE_GOOGLE_MAPS_API_KEY"));
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "google-maps-script";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Google Maps"));
+    document.head.appendChild(script);
+  });
+}
+
 const ShippingCostCalculator = () => {
   const [destination, setDestination] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,13 +47,15 @@ const ShippingCostCalculator = () => {
   const autocompleteRef = useRef<any>(null);
 
   useEffect(() => {
-    const initAutocomplete = () => {
-      if (!inputRef.current || !window.google?.maps?.places) return;
-      if (autocompleteRef.current) return;
+    let cancelled = false;
+
+    loadGoogleMapsScript().then(() => {
+      if (cancelled || !inputRef.current || autocompleteRef.current) return;
 
       autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
         types: ["address"],
         componentRestrictions: { country: "us" },
+        fields: ["formatted_address"],
       });
 
       autocompleteRef.current.addListener("place_changed", () => {
@@ -36,20 +64,9 @@ const ShippingCostCalculator = () => {
           setDestination(place.formatted_address);
         }
       });
-    };
+    }).catch(console.error);
 
-    // Wait for Google Maps to load
-    if (window.google?.maps?.places) {
-      initAutocomplete();
-    } else {
-      const interval = setInterval(() => {
-        if (window.google?.maps?.places) {
-          initAutocomplete();
-          clearInterval(interval);
-        }
-      }, 200);
-      return () => clearInterval(interval);
-    }
+    return () => { cancelled = true; };
   }, []);
 
   const handleCalculate = async () => {
@@ -85,12 +102,13 @@ const ShippingCostCalculator = () => {
           <Label className="flex items-center gap-2 text-sm font-medium">
             <MapPin className="h-3.5 w-3.5 text-primary" /> Delivery Address
           </Label>
-          <Input
+          <input
             ref={inputRef}
             placeholder="Start typing an address..."
-            value={destination}
+            defaultValue={destination}
             onChange={(e) => setDestination(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCalculate()}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
           />
           <p className="text-xs text-muted-foreground">
             Origin: Menomonee Falls, WI 53051
