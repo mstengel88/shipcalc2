@@ -11,13 +11,19 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
+  let SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
   if (!SHOPIFY_STORE_DOMAIN) {
     return new Response(JSON.stringify({ error: "SHOPIFY_STORE_DOMAIN not configured" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  // Clean domain: strip protocol, trailing slashes, /admin paths
+  SHOPIFY_STORE_DOMAIN = SHOPIFY_STORE_DOMAIN
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "")
+    .trim();
 
   const SHOPIFY_ADMIN_ACCESS_TOKEN = Deno.env.get("SHOPIFY_ADMIN_ACCESS_TOKEN");
   if (!SHOPIFY_ADMIN_ACCESS_TOKEN) {
@@ -27,7 +33,12 @@ serve(async (req) => {
     });
   }
 
-  const shopifyBase = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-01`;
+  // Debug logging (check edge function logs)
+  console.log("Shopify domain:", SHOPIFY_STORE_DOMAIN);
+  console.log("Token prefix:", SHOPIFY_ADMIN_ACCESS_TOKEN.substring(0, 8) + "...");
+  console.log("Token length:", SHOPIFY_ADMIN_ACCESS_TOKEN.length);
+
+  const shopifyBase = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10`;
 
   try {
     const url = new URL(req.url);
