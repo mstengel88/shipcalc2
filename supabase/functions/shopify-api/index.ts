@@ -49,12 +49,12 @@ serve(async (req) => {
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Storefront API failed [${res.status}]: ${errText}`);
+      throw new Error(`Admin API failed [${res.status}]: ${errText}`);
     }
 
     const json = await res.json();
     if (json.errors) {
-      throw new Error(`Storefront GraphQL errors: ${JSON.stringify(json.errors)}`);
+      throw new Error(`Admin GraphQL errors: ${JSON.stringify(json.errors)}`);
     }
     return json.data;
   }
