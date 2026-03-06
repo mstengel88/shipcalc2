@@ -188,19 +188,21 @@ serve(async (req) => {
         const quoteBody = await req.json();
         const { product_id, variant_id, quantity, distance_miles, truck_type } = quoteBody;
 
-        // Fetch variant weight via Admin API
+        // Fetch variant weight via Storefront API
         const gid = `gid://shopify/ProductVariant/${variant_id}`;
         const data = await adminQuery(`
           query Variant($id: ID!) {
-            productVariant(id: $id) {
-              id
-              weight
-              weightUnit
+            node(id: $id) {
+              ... on ProductVariant {
+                id
+                weight
+                weightUnit
+              }
             }
           }
         `, { id: gid });
 
-        const variantNode = data.productVariant;
+        const variantNode = data.node;
         const rawWeight = variantNode?.weight || 0;
         const weightUnit = (variantNode?.weightUnit || "POUNDS").toLowerCase();
         const weightLbs = weightUnit === "kilograms"
