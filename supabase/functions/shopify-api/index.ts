@@ -24,25 +24,25 @@ serve(async (req) => {
     .replace(/\/.*$/, "")
     .trim();
 
-  const ADMIN_TOKEN = Deno.env.get("SHOPIFY_ADMIN_ACCESS_TOKEN");
-  if (!ADMIN_TOKEN) {
-    return new Response(JSON.stringify({ error: "SHOPIFY_ADMIN_ACCESS_TOKEN not configured" }), {
+  const STOREFRONT_TOKEN = Deno.env.get("SHOPIFY_STOREFRONT_ACCESS_TOKEN");
+  if (!STOREFRONT_TOKEN) {
+    return new Response(JSON.stringify({ error: "SHOPIFY_STOREFRONT_ACCESS_TOKEN not configured" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   console.log("Domain:", SHOPIFY_STORE_DOMAIN);
-  console.log("Token prefix:", ADMIN_TOKEN.substring(0, 10) + "...");
+  console.log("Token prefix:", STOREFRONT_TOKEN.substring(0, 10) + "...");
 
-  const adminUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/graphql.json`;
+  const storefrontUrl = `https://${SHOPIFY_STORE_DOMAIN}/api/2024-10/graphql.json`;
 
   async function adminQuery(query: string, variables?: Record<string, unknown>) {
-    const res = await fetch(adminUrl, {
+    const res = await fetch(storefrontUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Access-Token": ADMIN_TOKEN!,
+        "Shopify-Storefront-Private-Token": STOREFRONT_TOKEN!,
       },
       body: JSON.stringify({ query, variables }),
     });
@@ -80,7 +80,10 @@ serve(async (req) => {
                       node {
                         id
                         title
-                        price
+                        price {
+                          amount
+                          currencyCode
+                        }
                         weight
                         weightUnit
                         sku
@@ -104,7 +107,7 @@ serve(async (req) => {
             variants: node.variants.edges.map((ve: any) => ({
               id: extractGid(ve.node.id),
               title: ve.node.title,
-              price: ve.node.price,
+              price: ve.node.price.amount,
               weight: ve.node.weight || 0,
               weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
               sku: ve.node.sku || "",
@@ -139,7 +142,10 @@ serve(async (req) => {
                   node {
                     id
                     title
-                    price
+                    price {
+                      amount
+                      currencyCode
+                    }
                     weight
                     weightUnit
                     sku
@@ -159,7 +165,7 @@ serve(async (req) => {
           variants: node.variants.edges.map((ve: any) => ({
             id: extractGid(ve.node.id),
             title: ve.node.title,
-            price: ve.node.price,
+            price: ve.node.price.amount,
             weight: ve.node.weight || 0,
             weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
             sku: ve.node.sku || "",
@@ -182,19 +188,21 @@ serve(async (req) => {
         const quoteBody = await req.json();
         const { product_id, variant_id, quantity, distance_miles, truck_type } = quoteBody;
 
-        // Fetch variant weight via Admin API
+        // Fetch variant weight via Storefront API
         const gid = `gid://shopify/ProductVariant/${variant_id}`;
         const data = await adminQuery(`
           query Variant($id: ID!) {
-            productVariant(id: $id) {
-              id
-              weight
-              weightUnit
+            node(id: $id) {
+              ... on ProductVariant {
+                id
+                weight
+                weightUnit
+              }
             }
           }
         `, { id: gid });
 
-        const variantNode = data.productVariant;
+        const variantNode = data.node;
         const rawWeight = variantNode?.weight || 0;
         const weightUnit = (variantNode?.weightUnit || "POUNDS").toLowerCase();
         const weightLbs = weightUnit === "kilograms"
