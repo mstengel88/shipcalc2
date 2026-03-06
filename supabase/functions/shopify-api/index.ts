@@ -19,41 +19,103 @@ serve(async (req) => {
     });
   }
 
-  // Clean domain: strip protocol, trailing slashes, /admin paths
   SHOPIFY_STORE_DOMAIN = SHOPIFY_STORE_DOMAIN
     .replace(/^https?:\/\//, "")
     .replace(/\/.*$/, "")
     .trim();
 
-  const SHOPIFY_ADMIN_ACCESS_TOKEN = Deno.env.get("SHOPIFY_ADMIN_ACCESS_TOKEN");
-  if (!SHOPIFY_ADMIN_ACCESS_TOKEN) {
-    return new Response(JSON.stringify({ error: "SHOPIFY_ADMIN_ACCESS_TOKEN not configured" }), {
+  const STOREFRONT_TOKEN = Deno.env.get("SHOPIFY_STOREFRONT_ACCESS_TOKEN");
+  if (!STOREFRONT_TOKEN) {
+    return new Response(JSON.stringify({ error: "SHOPIFY_STOREFRONT_ACCESS_TOKEN not configured" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  // Debug logging (check edge function logs)
-  console.log("Shopify domain:", SHOPIFY_STORE_DOMAIN);
-  console.log("Token prefix:", SHOPIFY_ADMIN_ACCESS_TOKEN.substring(0, 8) + "...");
-  console.log("Token length:", SHOPIFY_ADMIN_ACCESS_TOKEN.length);
+  const storefrontUrl = `https://${SHOPIFY_STORE_DOMAIN}/api/2024-01/graphql.json`;
 
-  const shopifyBase = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2026-01`;
+  async function storefrontQuery(query: string, variables?: Record<string, unknown>) {
+    const res = await fetch(storefrontUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN!,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Storefront API failed [${res.status}]: ${errText}`);
+    }
+
+    const json = await res.json();
+    if (json.errors) {
+      throw new Error(`Storefront GraphQL errors: ${JSON.stringify(json.errors)}`);
+    }
+    return json.data;
+  }
 
   try {
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
 
-    let shopifyUrl: string;
-    let method = "GET";
-    let body: string | undefined;
-
     switch (action) {
       case "products": {
-        const limit = url.searchParams.get("limit") || "50";
-        const fields = "id,title,variants,product_type,tags";
-        shopifyUrl = `${shopifyBase}/products.json?limit=${limit}&fields=${fields}`;
-        break;
+        const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+        const data = await storefrontQuery(`
+          query Products($first: Int!) {
+            products(first: $first) {
+              edges {
+                node {
+                  id
+                  title
+                  productType
+                  tags
+                  variants(first: 100) {
+                    edges {
+                      node {
+                        id
+                        title
+                        price {
+                          amount
+                          currencyCode
+                        }
+                        weight
+                        weightUnit
+                        sku
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `, { first: Math.min(limit, 250) });
+
+        // Transform GraphQL response to match our existing interface
+        const products = data.products.edges.map((edge: any) => {
+          const node = edge.node;
+          return {
+            id: extractGid(node.id),
+            title: node.title,
+            product_type: node.productType,
+            tags: node.tags.join(", "),
+            variants: node.variants.edges.map((ve: any) => ({
+              id: extractGid(ve.node.id),
+              title: ve.node.title,
+              price: ve.node.price.amount,
+              weight: ve.node.weight || 0,
+              weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
+              sku: ve.node.sku || "",
+            })),
+          };
+        });
+
+        return new Response(JSON.stringify({ products }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       case "product": {
@@ -64,13 +126,53 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        shopifyUrl = `${shopifyBase}/products/${productId}.json`;
-        break;
-      }
+        const gid = `gid://shopify/Product/${productId}`;
+        const data = await storefrontQuery(`
+          query Product($id: ID!) {
+            product(id: $id) {
+              id
+              title
+              productType
+              tags
+              variants(first: 100) {
+                edges {
+                  node {
+                    id
+                    title
+                    price {
+                      amount
+                      currencyCode
+                    }
+                    weight
+                    weightUnit
+                    sku
+                  }
+                }
+              }
+            }
+          }
+        `, { id: gid });
 
-      case "shipping_zones": {
-        shopifyUrl = `${shopifyBase}/shipping_zones.json`;
-        break;
+        const node = data.product;
+        const product = {
+          id: extractGid(node.id),
+          title: node.title,
+          product_type: node.productType,
+          tags: node.tags.join(", "),
+          variants: node.variants.edges.map((ve: any) => ({
+            id: extractGid(ve.node.id),
+            title: ve.node.title,
+            price: ve.node.price.amount,
+            weight: ve.node.weight || 0,
+            weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
+            sku: ve.node.sku || "",
+          })),
+        };
+
+        return new Response(JSON.stringify({ product }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       case "shipping_quote": {
@@ -83,31 +185,27 @@ serve(async (req) => {
         const quoteBody = await req.json();
         const { product_id, variant_id, quantity, distance_miles, truck_type } = quoteBody;
 
-        // Fetch variant weight from Shopify
-        const variantRes = await fetch(
-          `${shopifyBase}/variants/${variant_id}.json`,
-          {
-            headers: {
-              "X-Shopify-Access-Token": SHOPIFY_ADMIN_ACCESS_TOKEN,
-              "Content-Type": "application/json",
-            },
+        // Fetch variant weight via Storefront API
+        const gid = `gid://shopify/ProductVariant/${variant_id}`;
+        const data = await storefrontQuery(`
+          query Variant($id: ID!) {
+            node(id: $id) {
+              ... on ProductVariant {
+                id
+                weight
+                weightUnit
+              }
+            }
           }
-        );
+        `, { id: gid });
 
-        if (!variantRes.ok) {
-          const errText = await variantRes.text();
-          throw new Error(`Shopify variant fetch failed [${variantRes.status}]: ${errText}`);
-        }
+        const variantNode = data.node;
+        const rawWeight = variantNode?.weight || 0;
+        const weightUnit = (variantNode?.weightUnit || "POUNDS").toLowerCase();
+        const weightLbs = weightUnit === "kilograms"
+          ? rawWeight * 2.20462 * quantity
+          : rawWeight * quantity;
 
-        const variantData = await variantRes.json();
-        const variant = variantData.variant;
-        const weightLbs = variant.weight_unit === "lb"
-          ? variant.weight * quantity
-          : variant.weight_unit === "kg"
-          ? variant.weight * 2.20462 * quantity
-          : variant.weight * quantity;
-
-        // Calculate shipping using our logic
         const { calculateShippingCost, getZoneByDistance, TRUCK_TYPES } = await import("./shipping-calc.ts");
         const truck = TRUCK_TYPES.find((t: { id: string }) => t.id === truck_type) || TRUCK_TYPES[1];
         const costs = calculateShippingCost(distance_miles, weightLbs, truck);
@@ -130,31 +228,10 @@ serve(async (req) => {
 
       default:
         return new Response(
-          JSON.stringify({ error: "Unknown action. Use: products, product, shipping_zones, shipping_quote" }),
+          JSON.stringify({ error: "Unknown action. Use: products, product, shipping_quote" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
-
-    // Execute Shopify API call
-    const shopifyRes = await fetch(shopifyUrl, {
-      method,
-      headers: {
-        "X-Shopify-Access-Token": SHOPIFY_ADMIN_ACCESS_TOKEN,
-        "Content-Type": "application/json",
-      },
-      body,
-    });
-
-    if (!shopifyRes.ok) {
-      const errText = await shopifyRes.text();
-      throw new Error(`Shopify API call failed [${shopifyRes.status}]: ${errText}`);
-    }
-
-    const data = await shopifyRes.json();
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   } catch (error: unknown) {
     console.error("Shopify API error:", error);
     const msg = error instanceof Error ? error.message : "Unknown error";
@@ -164,3 +241,9 @@ serve(async (req) => {
     });
   }
 });
+
+/** Extract numeric ID from Shopify GID (e.g. "gid://shopify/Product/123" → "123") */
+function extractGid(gid: string): number {
+  const parts = gid.split("/");
+  return parseInt(parts[parts.length - 1], 10);
+}
