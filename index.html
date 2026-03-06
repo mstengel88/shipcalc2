@@ -25,11 +25,18 @@
 
   <body>
     <div id="root"></div>
-    <script
-      src="https://maps.googleapis.com/maps/api/js?key=%VITE_GOOGLE_MAPS_API_KEY%&libraries=places"
-      async
-      defer
-    ></script>
+    <script id="google-maps-loader"></script>
+    <script>
+      // Load Google Maps with the API key from env
+      (function() {
+        var key = '%VITE_GOOGLE_MAPS_API_KEY%';
+        if (key && !key.includes('VITE_')) {
+          var s = document.getElementById('google-maps-loader');
+          s.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&libraries=places';
+          s.async = true;
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
