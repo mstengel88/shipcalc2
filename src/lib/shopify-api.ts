@@ -78,7 +78,21 @@ export async function getShippingQuote(request: ShippingQuoteRequest): Promise<S
   return callShopifyApi("shipping_quote", undefined, request);
 }
 
-export async function fetchShippingZones() {
-  const data = await callShopifyApi("shipping_zones");
-  return data.shipping_zones || [];
+export interface DriveTimeQuoteRequest {
+  destination: string;
+}
+
+export interface DriveTimeQuoteResponse {
+  origin: string;
+  destination: string;
+  one_way_distance_miles: number;
+  one_way_duration_text: string;
+  one_way_duration_minutes: number;
+  round_trip_minutes: number;
+  rate_per_minute: number;
+  total_cost: number;
+}
+
+export async function getDriveTimeQuote(request: DriveTimeQuoteRequest): Promise<DriveTimeQuoteResponse> {
+  return callShopifyApi("drive_time_quote", undefined, request);
 }
