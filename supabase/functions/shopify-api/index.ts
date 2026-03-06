@@ -104,7 +104,7 @@ serve(async (req) => {
             variants: node.variants.edges.map((ve: any) => ({
               id: extractGid(ve.node.id),
               title: ve.node.title,
-              price: ve.node.price.amount,
+              price: ve.node.price,
               weight: ve.node.weight || 0,
               weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
               sku: ve.node.sku || "",
@@ -127,7 +127,7 @@ serve(async (req) => {
           });
         }
         const gid = `gid://shopify/Product/${productId}`;
-        const data = await storefrontQuery(`
+        const data = await adminQuery(`
           query Product($id: ID!) {
             product(id: $id) {
               id
@@ -139,10 +139,7 @@ serve(async (req) => {
                   node {
                     id
                     title
-                    price {
-                      amount
-                      currencyCode
-                    }
+                    price
                     weight
                     weightUnit
                     sku
@@ -162,7 +159,7 @@ serve(async (req) => {
           variants: node.variants.edges.map((ve: any) => ({
             id: extractGid(ve.node.id),
             title: ve.node.title,
-            price: ve.node.price.amount,
+            price: ve.node.price,
             weight: ve.node.weight || 0,
             weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
             sku: ve.node.sku || "",
@@ -185,21 +182,19 @@ serve(async (req) => {
         const quoteBody = await req.json();
         const { product_id, variant_id, quantity, distance_miles, truck_type } = quoteBody;
 
-        // Fetch variant weight via Storefront API
+        // Fetch variant weight via Admin API
         const gid = `gid://shopify/ProductVariant/${variant_id}`;
-        const data = await storefrontQuery(`
+        const data = await adminQuery(`
           query Variant($id: ID!) {
-            node(id: $id) {
-              ... on ProductVariant {
-                id
-                weight
-                weightUnit
-              }
+            productVariant(id: $id) {
+              id
+              weight
+              weightUnit
             }
           }
         `, { id: gid });
 
-        const variantNode = data.node;
+        const variantNode = data.productVariant;
         const rawWeight = variantNode?.weight || 0;
         const weightUnit = (variantNode?.weightUnit || "POUNDS").toLowerCase();
         const weightLbs = weightUnit === "kilograms"
