@@ -38,7 +38,7 @@ serve(async (req) => {
   console.log("Token prefix:", SHOPIFY_ADMIN_ACCESS_TOKEN.substring(0, 8) + "...");
   console.log("Token length:", SHOPIFY_ADMIN_ACCESS_TOKEN.length);
 
-  const shopifyBase = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10`;
+  const shopifyBase = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2026-01`;
 
   try {
     const url = new URL(req.url);
