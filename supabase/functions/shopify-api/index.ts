@@ -106,9 +106,15 @@ serve(async (req) => {
                         id
                         title
                         price
-                        weight
-                        weightUnit
                         sku
+                        inventoryItem {
+                          measurement {
+                            weight {
+                              value
+                              unit
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -126,14 +132,17 @@ serve(async (req) => {
             title: node.title,
             product_type: node.productType,
             tags: node.tags.join(", "),
-            variants: node.variants.edges.map((ve: any) => ({
-              id: extractGid(ve.node.id),
-              title: ve.node.title,
-              price: ve.node.price,
-              weight: ve.node.weight || 0,
-              weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
-              sku: ve.node.sku || "",
-            })),
+            variants: node.variants.edges.map((ve: any) => {
+              const w = ve.node.inventoryItem?.measurement?.weight;
+              return {
+                id: extractGid(ve.node.id),
+                title: ve.node.title,
+                price: ve.node.price,
+                weight: w?.value || 0,
+                weight_unit: (w?.unit || "POUNDS").toLowerCase(),
+                sku: ve.node.sku || "",
+              };
+            }),
           };
         });
 
@@ -162,12 +171,18 @@ serve(async (req) => {
               variants(first: 100) {
                 edges {
                   node {
-                        id
-                        title
-                        price
-                        weight
-                        weightUnit
-                        sku
+                    id
+                    title
+                    price
+                    sku
+                    inventoryItem {
+                      measurement {
+                        weight {
+                          value
+                          unit
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -181,14 +196,17 @@ serve(async (req) => {
           title: node.title,
           product_type: node.productType,
           tags: node.tags.join(", "),
-          variants: node.variants.edges.map((ve: any) => ({
-            id: extractGid(ve.node.id),
-            title: ve.node.title,
-            price: ve.node.price,
-            weight: ve.node.weight || 0,
-            weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
-            sku: ve.node.sku || "",
-          })),
+          variants: node.variants.edges.map((ve: any) => {
+            const w = ve.node.inventoryItem?.measurement?.weight;
+            return {
+              id: extractGid(ve.node.id),
+              title: ve.node.title,
+              price: ve.node.price,
+              weight: w?.value || 0,
+              weight_unit: (w?.unit || "POUNDS").toLowerCase(),
+              sku: ve.node.sku || "",
+            };
+          }),
         };
 
         return new Response(JSON.stringify({ product }), {
@@ -207,21 +225,27 @@ serve(async (req) => {
         const quoteBody = await req.json();
         const { product_id, variant_id, quantity, distance_miles, truck_type } = quoteBody;
 
-        // Fetch variant weight via Storefront API
+        // Fetch variant weight via Admin API
         const gid = `gid://shopify/ProductVariant/${variant_id}`;
         const data = await adminQuery(`
           query Variant($id: ID!) {
             productVariant(id: $id) {
               id
-              weight
-              weightUnit
+              inventoryItem {
+                measurement {
+                  weight {
+                    value
+                    unit
+                  }
+                }
+              }
             }
           }
         `, { id: gid });
 
-        const variantNode = data.productVariant;
-        const rawWeight = variantNode?.weight || 0;
-        const weightUnit = (variantNode?.weightUnit || "POUNDS").toLowerCase();
+        const w = data.productVariant?.inventoryItem?.measurement?.weight;
+        const rawWeight = w?.value || 0;
+        const weightUnit = (w?.unit || "POUNDS").toLowerCase();
         const weightLbs = weightUnit === "kilograms"
           ? rawWeight * 2.20462 * quantity
           : rawWeight * quantity;
