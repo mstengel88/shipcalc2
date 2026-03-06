@@ -1,4 +1,4 @@
-import { Truck } from "lucide-react";
+
 import ShippingCostCalculator from "@/components/ShippingCostCalculator";
 
 const Index = () => {
