@@ -270,6 +270,73 @@ serve(async (req) => {
         );
       }
 
+      case "drive_time_quote": {
+        if (req.method !== "POST") {
+          return new Response(JSON.stringify({ error: "POST required for drive_time_quote" }), {
+            status: 405,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
+        if (!GOOGLE_MAPS_API_KEY) {
+          return new Response(JSON.stringify({ error: "GOOGLE_MAPS_API_KEY not configured" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const ORIGIN_ADDRESS = "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+        const RATE_PER_MINUTE = 2.08;
+
+        const body = await req.json();
+        const { destination } = body;
+
+        if (!destination) {
+          return new Response(JSON.stringify({ error: "destination address required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Call Google Maps Directions API
+        const mapsUrl = new URL("https://maps.googleapis.com/maps/api/directions/json");
+        mapsUrl.searchParams.set("origin", ORIGIN_ADDRESS);
+        mapsUrl.searchParams.set("destination", destination);
+        mapsUrl.searchParams.set("key", GOOGLE_MAPS_API_KEY);
+        mapsUrl.searchParams.set("units", "imperial");
+
+        const mapsRes = await fetch(mapsUrl.toString());
+        const mapsData = await mapsRes.json();
+
+        if (mapsData.status !== "OK" || !mapsData.routes?.length) {
+          return new Response(
+            JSON.stringify({ error: `Google Maps error: ${mapsData.status}`, details: mapsData.error_message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const leg = mapsData.routes[0].legs[0];
+        const oneWaySeconds = leg.duration.value;
+        const oneWayMiles = leg.distance.value / 1609.34;
+        const roundTripMinutes = (oneWaySeconds * 2) / 60;
+        const totalCost = roundTripMinutes * RATE_PER_MINUTE;
+
+        return new Response(
+          JSON.stringify({
+            origin: ORIGIN_ADDRESS,
+            destination: leg.end_address,
+            one_way_distance_miles: Math.round(oneWayMiles * 10) / 10,
+            one_way_duration_text: leg.duration.text,
+            one_way_duration_minutes: Math.round(oneWaySeconds / 60 * 10) / 10,
+            round_trip_minutes: Math.round(roundTripMinutes * 10) / 10,
+            rate_per_minute: RATE_PER_MINUTE,
+            total_cost: Math.round(totalCost * 100) / 100,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: "Unknown action. Use: products, product, shipping_quote" }),
