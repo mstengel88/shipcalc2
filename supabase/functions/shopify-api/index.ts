@@ -24,25 +24,50 @@ serve(async (req) => {
     .replace(/\/.*$/, "")
     .trim();
 
-  const STOREFRONT_TOKEN = Deno.env.get("SHOPIFY_STOREFRONT_ACCESS_TOKEN");
-  if (!STOREFRONT_TOKEN) {
-    return new Response(JSON.stringify({ error: "SHOPIFY_STOREFRONT_ACCESS_TOKEN not configured" }), {
+  const CLIENT_ID = Deno.env.get("SHOPIFY_CLIENT_ID");
+  const CLIENT_SECRET = Deno.env.get("SHOPIFY_CLIENT_SECRET");
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    return new Response(JSON.stringify({ error: "SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET required" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   console.log("Domain:", SHOPIFY_STORE_DOMAIN);
-  console.log("Token prefix:", STOREFRONT_TOKEN.substring(0, 10) + "...");
+  console.log("Client ID:", CLIENT_ID.substring(0, 8) + "...");
 
-  const storefrontUrl = `https://${SHOPIFY_STORE_DOMAIN}/api/2024-10/graphql.json`;
+  // Exchange client credentials for Admin API access token
+  async function getAccessToken(): Promise<string> {
+    const tokenUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/oauth/access_token`;
+    const res = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        grant_type: "client_credentials",
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Token exchange failed [${res.status}]: ${errText}`);
+    }
+
+    const json = await res.json();
+    console.log("Got access token, prefix:", json.access_token?.substring(0, 10) + "...");
+    return json.access_token;
+  }
+
+  const accessToken = await getAccessToken();
+  const adminUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10/graphql.json`;
 
   async function adminQuery(query: string, variables?: Record<string, unknown>) {
-    const res = await fetch(storefrontUrl, {
+    const res = await fetch(adminUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Shopify-Storefront-Private-Token": STOREFRONT_TOKEN!,
+        "X-Shopify-Access-Token": accessToken,
       },
       body: JSON.stringify({ query, variables }),
     });
@@ -80,10 +105,7 @@ serve(async (req) => {
                       node {
                         id
                         title
-                        price {
-                          amount
-                          currencyCode
-                        }
+                        price
                         weight
                         weightUnit
                         sku
@@ -107,7 +129,7 @@ serve(async (req) => {
             variants: node.variants.edges.map((ve: any) => ({
               id: extractGid(ve.node.id),
               title: ve.node.title,
-              price: ve.node.price.amount,
+              price: ve.node.price,
               weight: ve.node.weight || 0,
               weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
               sku: ve.node.sku || "",
@@ -140,15 +162,12 @@ serve(async (req) => {
               variants(first: 100) {
                 edges {
                   node {
-                    id
-                    title
-                    price {
-                      amount
-                      currencyCode
-                    }
-                    weight
-                    weightUnit
-                    sku
+                        id
+                        title
+                        price
+                        weight
+                        weightUnit
+                        sku
                   }
                 }
               }
@@ -165,7 +184,7 @@ serve(async (req) => {
           variants: node.variants.edges.map((ve: any) => ({
             id: extractGid(ve.node.id),
             title: ve.node.title,
-            price: ve.node.price.amount,
+            price: ve.node.price,
             weight: ve.node.weight || 0,
             weight_unit: (ve.node.weightUnit || "POUNDS").toLowerCase(),
             sku: ve.node.sku || "",
@@ -192,17 +211,15 @@ serve(async (req) => {
         const gid = `gid://shopify/ProductVariant/${variant_id}`;
         const data = await adminQuery(`
           query Variant($id: ID!) {
-            node(id: $id) {
-              ... on ProductVariant {
-                id
-                weight
-                weightUnit
-              }
+            productVariant(id: $id) {
+              id
+              weight
+              weightUnit
             }
           }
         `, { id: gid });
 
-        const variantNode = data.node;
+        const variantNode = data.productVariant;
         const rawWeight = variantNode?.weight || 0;
         const weightUnit = (variantNode?.weightUnit || "POUNDS").toLowerCase();
         const weightLbs = weightUnit === "kilograms"
