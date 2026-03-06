@@ -299,35 +299,42 @@ serve(async (req) => {
           });
         }
 
-        // Call Google Maps Directions API
-        const mapsUrl = new URL("https://maps.googleapis.com/maps/api/directions/json");
-        mapsUrl.searchParams.set("origin", ORIGIN_ADDRESS);
-        mapsUrl.searchParams.set("destination", destination);
+        // Call Google Maps Distance Matrix API
+        const mapsUrl = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
+        mapsUrl.searchParams.set("origins", ORIGIN_ADDRESS);
+        mapsUrl.searchParams.set("destinations", destination);
         mapsUrl.searchParams.set("key", GOOGLE_MAPS_API_KEY);
         mapsUrl.searchParams.set("units", "imperial");
 
         const mapsRes = await fetch(mapsUrl.toString());
         const mapsData = await mapsRes.json();
 
-        if (mapsData.status !== "OK" || !mapsData.routes?.length) {
+        if (mapsData.status !== "OK") {
           return new Response(
             JSON.stringify({ error: `Google Maps error: ${mapsData.status}`, details: mapsData.error_message }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
-        const leg = mapsData.routes[0].legs[0];
-        const oneWaySeconds = leg.duration.value;
-        const oneWayMiles = leg.distance.value / 1609.34;
+        const element = mapsData.rows?.[0]?.elements?.[0];
+        if (!element || element.status !== "OK") {
+          return new Response(
+            JSON.stringify({ error: `No route found: ${element?.status || "UNKNOWN"}` }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const oneWaySeconds = element.duration.value;
+        const oneWayMiles = element.distance.value / 1609.34;
         const roundTripMinutes = (oneWaySeconds * 2) / 60;
         const totalCost = roundTripMinutes * RATE_PER_MINUTE;
 
         return new Response(
           JSON.stringify({
             origin: ORIGIN_ADDRESS,
-            destination: leg.end_address,
+            destination: mapsData.destination_addresses?.[0] || destination,
             one_way_distance_miles: Math.round(oneWayMiles * 10) / 10,
-            one_way_duration_text: leg.duration.text,
+            one_way_duration_text: element.duration.text,
             one_way_duration_minutes: Math.round(oneWaySeconds / 60 * 10) / 10,
             round_trip_minutes: Math.round(roundTripMinutes * 10) / 10,
             rate_per_minute: RATE_PER_MINUTE,
