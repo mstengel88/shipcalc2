@@ -211,17 +211,15 @@ serve(async (req) => {
         const gid = `gid://shopify/ProductVariant/${variant_id}`;
         const data = await adminQuery(`
           query Variant($id: ID!) {
-            node(id: $id) {
-              ... on ProductVariant {
-                id
-                weight
-                weightUnit
-              }
+            productVariant(id: $id) {
+              id
+              weight
+              weightUnit
             }
           }
         `, { id: gid });
 
-        const variantNode = data.node;
+        const variantNode = data.productVariant;
         const rawWeight = variantNode?.weight || 0;
         const weightUnit = (variantNode?.weightUnit || "POUNDS").toLowerCase();
         const weightLbs = weightUnit === "kilograms"
