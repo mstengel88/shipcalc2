@@ -1,12 +1,9 @@
-import { Truck, Package, ShoppingBag } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Truck } from "lucide-react";
 import ShippingCostCalculator from "@/components/ShippingCostCalculator";
-import MultiTruckCalculator from "@/components/MultiTruckCalculator";
-import ShopifyShippingQuote from "@/components/ShopifyShippingQuote";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background dark">
       {/* Header */}
       <header className="border-b-2 border-border bg-surface/50">
         <div className="container mx-auto px-4 py-6">
@@ -28,34 +25,9 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="shipping" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-3 mx-auto">
-            <TabsTrigger value="shipping" className="flex items-center gap-2 font-heading font-semibold">
-              <Truck className="h-4 w-4" />
-              Shipping Cost
-            </TabsTrigger>
-            <TabsTrigger value="multi-truck" className="flex items-center gap-2 font-heading font-semibold">
-              <Package className="h-4 w-4" />
-              Multi-Truck
-            </TabsTrigger>
-            <TabsTrigger value="shopify" className="flex items-center gap-2 font-heading font-semibold">
-              <ShoppingBag className="h-4 w-4" />
-              Shopify Quote
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="shipping" className="max-w-2xl mx-auto">
-            <ShippingCostCalculator />
-          </TabsContent>
-
-          <TabsContent value="multi-truck" className="max-w-2xl mx-auto">
-            <MultiTruckCalculator />
-          </TabsContent>
-
-          <TabsContent value="shopify" className="max-w-2xl mx-auto">
-            <ShopifyShippingQuote />
-          </TabsContent>
-        </Tabs>
+        <div className="max-w-2xl mx-auto">
+          <ShippingCostCalculator />
+        </div>
       </main>
 
       {/* Footer */}

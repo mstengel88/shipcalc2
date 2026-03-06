@@ -93,7 +93,6 @@ const ShippingCostCalculator = () => {
           </div>
           <div>
             <CardTitle className="font-heading text-xl">Delivery Cost Calculator</CardTitle>
-            <CardDescription>Round-trip time-based pricing at $2.08/min from our location</CardDescription>
           </div>
         </div>
       </CardHeader>
