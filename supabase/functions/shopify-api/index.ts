@@ -332,9 +332,9 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             origin: ORIGIN_ADDRESS,
-            destination: leg.end_address,
+            destination: mapsData.destination_addresses?.[0] || destination,
             one_way_distance_miles: Math.round(oneWayMiles * 10) / 10,
-            one_way_duration_text: leg.duration.text,
+            one_way_duration_text: element.duration.text,
             one_way_duration_minutes: Math.round(oneWaySeconds / 60 * 10) / 10,
             round_trip_minutes: Math.round(roundTripMinutes * 10) / 10,
             rate_per_minute: RATE_PER_MINUTE,
