@@ -2,3 +2,6 @@ project_id = "mtntrlbuhcbdrngiubdu"
 
 [functions.shopify-api]
 verify_jwt = false
+
+[functions.carrier-service]
+verify_jwt = false
