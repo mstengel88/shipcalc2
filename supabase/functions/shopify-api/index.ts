@@ -24,16 +24,50 @@ serve(async (req) => {
     .replace(/\/.*$/, "")
     .trim();
 
-  const accessToken = Deno.env.get("SHOPIFY_ADMIN_ACCESS_TOKEN");
-  if (!accessToken) {
-    return new Response(JSON.stringify({ error: "SHOPIFY_ADMIN_ACCESS_TOKEN required" }), {
+  const clientId = Deno.env.get("SHOPIFY_CLIENT_ID");
+  const clientSecret = Deno.env.get("SHOPIFY_CLIENT_SECRET");
+  if (!clientId || !clientSecret) {
+    return new Response(JSON.stringify({ error: "SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET required" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   console.log("Domain:", SHOPIFY_STORE_DOMAIN);
-  console.log("Access token prefix:", accessToken.substring(0, 10) + "...");
+  console.log("Client ID prefix:", clientId.substring(0, 10) + "...");
+
+  // Exchange client credentials for access token
+  let accessToken: string;
+  try {
+    const tokenRes = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: "client_credentials",
+      }),
+    });
+
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      console.error("Token exchange failed:", tokenRes.status, errText);
+      return new Response(JSON.stringify({ error: `Token exchange failed: ${errText}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const tokenData = await tokenRes.json();
+    accessToken = tokenData.access_token;
+    console.log("Got access token, scope:", tokenData.scope);
+  } catch (err) {
+    console.error("Token exchange error:", err);
+    return new Response(JSON.stringify({ error: `Token exchange error: ${err}` }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const adminUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10/graphql.json`;
 
