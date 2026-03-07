@@ -344,9 +344,55 @@ serve(async (req) => {
         );
       }
 
+      case "register_carrier": {
+        const callbackUrl = url.searchParams.get("callback_url");
+        if (!callbackUrl) {
+          return new Response(JSON.stringify({ error: "callback_url required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const registerData = await adminQuery(`
+          mutation carrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
+            carrierServiceCreate(input: $input) {
+              carrierService {
+                id
+                name
+                callbackUrl
+                active
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `, {
+          input: {
+            name: "GHS Delivery",
+            callbackUrl: callbackUrl,
+            supportsServiceDiscovery: false,
+          },
+        });
+
+        const result = registerData.carrierServiceCreate;
+        if (result.userErrors?.length > 0) {
+          return new Response(JSON.stringify({ error: result.userErrors }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ carrier_service: result.carrierService }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       default:
         return new Response(
-          JSON.stringify({ error: "Unknown action. Use: products, product, shipping_quote" }),
+          JSON.stringify({ error: "Unknown action. Use: products, product, shipping_quote, register_carrier" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
