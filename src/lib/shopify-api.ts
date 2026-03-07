@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface ShopifyProduct {
   id: number;
   title: string;
+  vendor: string;
   product_type: string;
   tags: string;
   variants: ShopifyVariant[];
