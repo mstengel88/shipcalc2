@@ -42,7 +42,7 @@ async function getShopifyAccessToken(): Promise<string | null> {
   }
 }
 
-async function getOriginFromProductInventory(variantId: number): Promise<string | null> {
+async function getOriginFromProductVendor(variantId: number): Promise<string | null> {
   const domain = Deno.env.get("SHOPIFY_STORE_DOMAIN")?.replace(/^https?:\/\//, "").replace(/\/.*$/, "").trim();
   const accessToken = await getShopifyAccessToken();
   if (!accessToken || !domain) return null;
@@ -56,26 +56,10 @@ async function getOriginFromProductInventory(variantId: number): Promise<string 
         "X-Shopify-Access-Token": accessToken,
       },
       body: JSON.stringify({
-        query: `query VariantLocation($id: ID!) {
+        query: `query VariantVendor($id: ID!) {
           productVariant(id: $id) {
-            inventoryItem {
-              inventoryLevels(first: 1) {
-                edges {
-                  node {
-                    location {
-                      name
-                      address {
-                        address1
-                        address2
-                        city
-                        province
-                        zip
-                        country
-                      }
-                    }
-                  }
-                }
-              }
+            product {
+              vendor
             }
           }
         }`,
@@ -85,15 +69,28 @@ async function getOriginFromProductInventory(variantId: number): Promise<string 
 
     if (!res.ok) return null;
     const json = await res.json();
-    const loc = json.data?.productVariant?.inventoryItem?.inventoryLevels?.edges?.[0]?.node?.location;
-    if (!loc) return null;
+    const vendor = json.data?.productVariant?.product?.vendor;
+    if (!vendor) return null;
 
-    const a = loc.address;
-    const fullAddress = [a.address1, a.address2, a.city, a.province, a.zip, a.country].filter(Boolean).join(", ");
-    console.log(`Resolved inventory location for variant ${variantId}: ${loc.name} — ${fullAddress}`);
-    return fullAddress || null;
+    console.log(`Resolved vendor for variant ${variantId}: ${vendor}`);
+
+    // Match vendor to origin_addresses by label (case-insensitive)
+    const { data } = await supabaseAdmin
+      .from("origin_addresses")
+      .select("address")
+      .ilike("label", vendor)
+      .limit(1)
+      .single();
+
+    if (data?.address) {
+      console.log(`Matched vendor "${vendor}" to origin address: ${data.address}`);
+      return data.address;
+    }
+
+    console.log(`No origin address found matching vendor "${vendor}"`);
+    return null;
   } catch (err) {
-    console.error("Failed to fetch inventory location:", err);
+    console.error("Failed to fetch vendor origin:", err);
     return null;
   }
 }
@@ -152,7 +149,7 @@ serve(async (req) => {
     if (items && items.length > 0) {
       const firstVariantId = items[0].variant_id;
       if (firstVariantId) {
-        ORIGIN_ADDRESS = await getOriginFromProductInventory(firstVariantId);
+        ORIGIN_ADDRESS = await getOriginFromProductVendor(firstVariantId);
       }
     }
 
