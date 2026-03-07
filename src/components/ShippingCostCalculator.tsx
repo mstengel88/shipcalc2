@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { MapPin, DollarSign, Loader2, Clock } from "lucide-react";
 import { getDriveTimeQuote, type DriveTimeQuoteResponse } from "@/lib/shopify-api";
+import { supabase } from "@/integrations/supabase/client";
 
 declare global {
   interface Window {
@@ -43,10 +44,23 @@ const ShippingCostCalculator = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<DriveTimeQuoteResponse | null>(null);
+  const [originLabel, setOriginLabel] = useState("Menomonee Falls, WI 53051");
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const selectedAddressRef = useRef<string>("");
   const pendingSubmitRef = useRef(false);
+
+  useEffect(() => {
+    supabase
+      .from("origin_addresses")
+      .select("label, address")
+      .eq("is_active", true)
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data) setOriginLabel(`${data.label} — ${data.address}`);
+      });
+  }, []);
 
   const doCalculate = useCallback(async (addr: string) => {
     if (!addr) return;
@@ -144,7 +158,7 @@ const ShippingCostCalculator = () => {
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
           />
           <p className="text-xs text-muted-foreground">
-            Origin: Menomonee Falls, WI 53051
+            Origin: {originLabel}
           </p>
         </div>
 
