@@ -45,6 +45,23 @@ const ShippingCostCalculator = () => {
   const [quote, setQuote] = useState<DriveTimeQuoteResponse | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
+  const selectedAddressRef = useRef<string>("");
+  const pendingSubmitRef = useRef(false);
+
+  const doCalculate = useCallback(async (addr: string) => {
+    if (!addr) return;
+    setLoading(true);
+    setError(null);
+    setQuote(null);
+    try {
+      const result = await getDriveTimeQuote({ destination: addr });
+      setQuote(result);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to get quote");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,35 +78,43 @@ const ShippingCostCalculator = () => {
       autocompleteRef.current.addListener("place_changed", () => {
         const place = autocompleteRef.current.getPlace();
         if (place?.formatted_address) {
+          selectedAddressRef.current = place.formatted_address;
           setDestination(place.formatted_address);
+          // If user pressed Enter while dropdown was open, submit now
+          if (pendingSubmitRef.current) {
+            pendingSubmitRef.current = false;
+            doCalculate(place.formatted_address);
+          }
         }
       });
     }).catch(console.error);
 
     return () => { cancelled = true; };
-  }, []);
+  }, [doCalculate]);
 
   const handleCalculate = async () => {
-    // Pull the latest address from autocomplete if available
-    let addr = destination.trim();
-    if (autocompleteRef.current) {
-      const place = autocompleteRef.current.getPlace();
-      if (place?.formatted_address) {
-        addr = place.formatted_address;
-        setDestination(addr);
-      }
-    }
+    const addr = selectedAddressRef.current || destination.trim();
     if (!addr) return;
-    setLoading(true);
-    setError(null);
-    setQuote(null);
-    try {
-      const result = await getDriveTimeQuote({ destination: addr });
-      setQuote(result);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to get quote");
-    } finally {
-      setLoading(false);
+    doCalculate(addr);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      // If we already have a selected address, submit immediately
+      if (selectedAddressRef.current) {
+        doCalculate(selectedAddressRef.current);
+      } else {
+        // Mark pending — place_changed will fire after autocomplete selects, then we submit
+        pendingSubmitRef.current = true;
+        // Fallback: if no place_changed fires within 500ms, try with raw text
+        setTimeout(() => {
+          if (pendingSubmitRef.current) {
+            pendingSubmitRef.current = false;
+            const addr = selectedAddressRef.current || destination.trim();
+            if (addr) doCalculate(addr);
+          }
+        }, 500);
+      }
     }
   };
 
