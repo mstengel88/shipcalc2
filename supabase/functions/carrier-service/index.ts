@@ -12,6 +12,9 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+const MAX_WEIGHT_GRAMS = 19958000; // 22 tons in grams (44,000 lbs)
+const RATE_PER_MINUTE = 2.08;
+
 async function getActiveOriginAddress(): Promise<string> {
   const { data } = await supabaseAdmin
     .from("origin_addresses")
@@ -74,7 +77,6 @@ async function getOriginFromProductVendor(variantId: number): Promise<string | n
 
     console.log(`Resolved vendor for variant ${variantId}: ${vendor}`);
 
-    // Match vendor to origin_addresses by label (case-insensitive)
     const { data } = await supabaseAdmin
       .from("origin_addresses")
       .select("address")
@@ -95,7 +97,38 @@ async function getOriginFromProductVendor(variantId: number): Promise<string | n
   }
 }
 
-const RATE_PER_MINUTE = 2.08;
+async function getDriveTimeCost(
+  originAddress: string,
+  destinationAddress: string,
+  googleMapsApiKey: string
+): Promise<{ costDollars: number; oneWayMiles: number; durationText: string; roundTripMinutes: number } | null> {
+  const mapsUrl = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
+  mapsUrl.searchParams.set("origins", originAddress);
+  mapsUrl.searchParams.set("destinations", destinationAddress);
+  mapsUrl.searchParams.set("key", googleMapsApiKey);
+  mapsUrl.searchParams.set("units", "imperial");
+
+  const mapsRes = await fetch(mapsUrl.toString());
+  const mapsData = await mapsRes.json();
+
+  if (mapsData.status !== "OK") {
+    console.error("Google Maps error:", mapsData.status, mapsData.error_message);
+    return null;
+  }
+
+  const element = mapsData.rows?.[0]?.elements?.[0];
+  if (!element || element.status !== "OK") {
+    console.error("No route found:", element?.status);
+    return null;
+  }
+
+  const oneWaySeconds = element.duration.value;
+  const roundTripMinutes = (oneWaySeconds * 2) / 60;
+  const costDollars = roundTripMinutes * RATE_PER_MINUTE;
+  const oneWayMiles = Math.round(element.distance.value / 1609.34 * 10) / 10;
+
+  return { costDollars, oneWayMiles, durationText: element.duration.text, roundTripMinutes };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -130,35 +163,14 @@ serve(async (req) => {
       });
     }
 
-    // Build destination address string
     const destParts = [
-      dest.address1,
-      dest.address2,
-      dest.city,
-      dest.province,
-      dest.postal_code,
-      dest.country,
+      dest.address1, dest.address2, dest.city,
+      dest.province, dest.postal_code, dest.country,
     ].filter(Boolean);
     const destinationAddress = destParts.join(", ");
 
     console.log("Carrier service request for destination:", destinationAddress);
 
-    // Try to resolve origin from the first item's inventory location in Shopify
-    let ORIGIN_ADDRESS: string | null = null;
-    const items = rateRequest.items;
-    if (items && items.length > 0) {
-      const firstVariantId = items[0].variant_id;
-      if (firstVariantId) {
-        ORIGIN_ADDRESS = await getOriginFromProductVendor(firstVariantId);
-      }
-    }
-
-    // Fall back to active origin from DB
-    if (!ORIGIN_ADDRESS) {
-      ORIGIN_ADDRESS = await getActiveOriginAddress();
-    }
-
-    console.log("Using origin address:", ORIGIN_ADDRESS);
     const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
     if (!GOOGLE_MAPS_API_KEY) {
       console.error("GOOGLE_MAPS_API_KEY not configured");
@@ -168,48 +180,76 @@ serve(async (req) => {
       });
     }
 
-    // Call Google Maps Distance Matrix API
-    const mapsUrl = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
-    mapsUrl.searchParams.set("origins", ORIGIN_ADDRESS);
-    mapsUrl.searchParams.set("destinations", destinationAddress);
-    mapsUrl.searchParams.set("key", GOOGLE_MAPS_API_KEY);
-    mapsUrl.searchParams.set("units", "imperial");
+    const items = rateRequest.items || [];
+    const defaultOrigin = await getActiveOriginAddress();
 
-    const mapsRes = await fetch(mapsUrl.toString());
-    const mapsData = await mapsRes.json();
+    // Group items by their origin address (vendor-based)
+    // Each unique line item = 1 delivery, extra trucks if weight > 22 tons
+    let totalDeliveryCostCents = 0;
+    let totalTrucks = 0;
+    const routeCache: Record<string, { costDollars: number; oneWayMiles: number; durationText: string; roundTripMinutes: number }> = {};
 
-    if (mapsData.status !== "OK") {
-      console.error("Google Maps error:", mapsData.status, mapsData.error_message);
-      return new Response(JSON.stringify({ rates: [] }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    for (const item of items) {
+      // Resolve origin for this item
+      let origin: string | null = null;
+      if (item.variant_id) {
+        origin = await getOriginFromProductVendor(item.variant_id);
+      }
+      if (!origin) {
+        origin = defaultOrigin;
+      }
+
+      console.log(`Item variant ${item.variant_id}: origin=${origin}`);
+
+      // Calculate item weight in grams
+      const itemTotalWeightGrams = (item.grams || 0) * (item.quantity || 1);
+      
+      // How many trucks needed for this line item based on weight
+      const trucksForItem = Math.max(1, Math.ceil(itemTotalWeightGrams / MAX_WEIGHT_GRAMS));
+
+      console.log(`Item variant ${item.variant_id}: ${itemTotalWeightGrams}g total, ${trucksForItem} truck(s) needed`);
+
+      // Get route cost (cache by origin to avoid duplicate Google Maps calls)
+      const cacheKey = `${origin}|${destinationAddress}`;
+      let routeCost = routeCache[cacheKey];
+      if (!routeCost) {
+        const result = await getDriveTimeCost(origin, destinationAddress, GOOGLE_MAPS_API_KEY);
+        if (!result) {
+          console.error(`No route for item variant ${item.variant_id}`);
+          continue;
+        }
+        routeCache[cacheKey] = result;
+        routeCost = result;
+      }
+
+      const itemDeliveryCost = routeCost.costDollars * trucksForItem;
+      totalDeliveryCostCents += Math.round(itemDeliveryCost * 100);
+      totalTrucks += trucksForItem;
+
+      console.log(`Item variant ${item.variant_id}: ${trucksForItem} truck(s) × $${routeCost.costDollars.toFixed(2)} = $${itemDeliveryCost.toFixed(2)}`);
     }
 
-    const element = mapsData.rows?.[0]?.elements?.[0];
-    if (!element || element.status !== "OK") {
-      console.error("No route found:", element?.status);
-      return new Response(JSON.stringify({ rates: [] }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Fallback: if no items processed, calculate single delivery from default origin
+    if (totalTrucks === 0) {
+      const result = await getDriveTimeCost(defaultOrigin, destinationAddress, GOOGLE_MAPS_API_KEY);
+      if (result) {
+        totalDeliveryCostCents = Math.round(result.costDollars * 100);
+        totalTrucks = 1;
+      }
     }
 
-    const oneWaySeconds = element.duration.value;
-    const roundTripMinutes = (oneWaySeconds * 2) / 60;
-    const totalCostDollars = roundTripMinutes * RATE_PER_MINUTE;
-    const totalPriceCents = Math.round(totalCostDollars * 100);
+    console.log(`Total: ${totalTrucks} truck(s), $${(totalDeliveryCostCents / 100).toFixed(2)}`);
 
-    const oneWayMiles = Math.round(element.distance.value / 1609.34 * 10) / 10;
-
-    console.log(`Route: ${oneWayMiles} mi one-way, ${Math.round(roundTripMinutes)} min round-trip, $${totalCostDollars.toFixed(2)}`);
+    const description = totalTrucks > 1
+      ? `Delivery (${totalTrucks} loads required)`
+      : "GHS Delivery";
 
     const rates = [
       {
         service_name: "GHS Delivery",
         service_code: "ghs_delivery",
-        total_price: String(totalPriceCents),
-        description: `Delivery (${oneWayMiles} mi, ~${element.duration.text} one-way)`,
+        total_price: String(totalDeliveryCostCents),
+        description,
         currency: rateRequest.currency || "USD",
         min_delivery_date: null,
         max_delivery_date: null,
