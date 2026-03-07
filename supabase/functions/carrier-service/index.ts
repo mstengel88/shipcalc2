@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,7 +7,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ORIGIN_ADDRESS = "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+const supabaseAdmin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+);
+
+async function getActiveOriginAddress(): Promise<string> {
+  const { data } = await supabaseAdmin
+    .from("origin_addresses")
+    .select("address")
+    .eq("is_active", true)
+    .limit(1)
+    .single();
+  return data?.address || "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+}
+
 const RATE_PER_MINUTE = 2.08;
 
 serve(async (req) => {
@@ -55,6 +70,8 @@ serve(async (req) => {
 
     console.log("Carrier service request for destination:", destinationAddress);
 
+    const ORIGIN_ADDRESS = await getActiveOriginAddress();
+    console.log("Using origin address:", ORIGIN_ADDRESS);
     const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
     if (!GOOGLE_MAPS_API_KEY) {
       console.error("GOOGLE_MAPS_API_KEY not configured");
