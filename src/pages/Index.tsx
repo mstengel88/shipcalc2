@@ -12,12 +12,6 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-surface/30 py-4 mt-auto">
-        <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
-          Rates are estimates. Actual costs may vary based on fuel prices, road conditions, and availability.
-        </div>
-      </footer>
     </div>
   );
 };
