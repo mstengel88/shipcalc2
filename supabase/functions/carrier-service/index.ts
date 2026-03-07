@@ -22,6 +22,82 @@ async function getActiveOriginAddress(): Promise<string> {
   return data?.address || "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
 }
 
+async function getShopifyAccessToken(): Promise<string | null> {
+  const domain = Deno.env.get("SHOPIFY_STORE_DOMAIN")?.replace(/^https?:\/\//, "").replace(/\/.*$/, "").trim();
+  const clientId = Deno.env.get("SHOPIFY_CLIENT_ID");
+  const clientSecret = Deno.env.get("SHOPIFY_CLIENT_SECRET");
+  if (!domain || !clientId || !clientSecret) return null;
+
+  try {
+    const tokenRes = await fetch(`https://${domain}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" }),
+    });
+    if (!tokenRes.ok) return null;
+    const tokenData = await tokenRes.json();
+    return tokenData.access_token;
+  } catch {
+    return null;
+  }
+}
+
+async function getOriginFromProductInventory(variantId: number): Promise<string | null> {
+  const domain = Deno.env.get("SHOPIFY_STORE_DOMAIN")?.replace(/^https?:\/\//, "").replace(/\/.*$/, "").trim();
+  const accessToken = await getShopifyAccessToken();
+  if (!accessToken || !domain) return null;
+
+  try {
+    const gid = `gid://shopify/ProductVariant/${variantId}`;
+    const res = await fetch(`https://${domain}/admin/api/2024-10/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: JSON.stringify({
+        query: `query VariantLocation($id: ID!) {
+          productVariant(id: $id) {
+            inventoryItem {
+              inventoryLevels(first: 1) {
+                edges {
+                  node {
+                    location {
+                      name
+                      address {
+                        address1
+                        address2
+                        city
+                        province
+                        zip
+                        country
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }`,
+        variables: { id: gid },
+      }),
+    });
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    const loc = json.data?.productVariant?.inventoryItem?.inventoryLevels?.edges?.[0]?.node?.location;
+    if (!loc) return null;
+
+    const a = loc.address;
+    const fullAddress = [a.address1, a.address2, a.city, a.province, a.zip, a.country].filter(Boolean).join(", ");
+    console.log(`Resolved inventory location for variant ${variantId}: ${loc.name} — ${fullAddress}`);
+    return fullAddress || null;
+  } catch (err) {
+    console.error("Failed to fetch inventory location:", err);
+    return null;
+  }
+}
+
 const RATE_PER_MINUTE = 2.08;
 
 serve(async (req) => {
@@ -70,7 +146,21 @@ serve(async (req) => {
 
     console.log("Carrier service request for destination:", destinationAddress);
 
-    const ORIGIN_ADDRESS = await getActiveOriginAddress();
+    // Try to resolve origin from the first item's inventory location in Shopify
+    let ORIGIN_ADDRESS: string | null = null;
+    const items = rateRequest.items;
+    if (items && items.length > 0) {
+      const firstVariantId = items[0].variant_id;
+      if (firstVariantId) {
+        ORIGIN_ADDRESS = await getOriginFromProductInventory(firstVariantId);
+      }
+    }
+
+    // Fall back to active origin from DB
+    if (!ORIGIN_ADDRESS) {
+      ORIGIN_ADDRESS = await getActiveOriginAddress();
+    }
+
     console.log("Using origin address:", ORIGIN_ADDRESS);
     const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
     if (!GOOGLE_MAPS_API_KEY) {
@@ -122,7 +212,7 @@ serve(async (req) => {
         service_name: "GHS Delivery",
         service_code: "ghs_delivery",
         total_price: String(totalPriceCents),
-        description: `Delivery from Menomonee Falls, WI (${oneWayMiles} mi, ~${element.duration.text} one-way)`,
+        description: `Delivery (${oneWayMiles} mi, ~${element.duration.text} one-way)`,
         currency: rateRequest.currency || "USD",
         min_delivery_date: null,
         max_delivery_date: null,

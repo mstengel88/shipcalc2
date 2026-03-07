@@ -311,11 +311,54 @@ serve(async (req) => {
           });
         }
 
-        const ORIGIN_ADDRESS = await getActiveOriginAddress();
         const RATE_PER_MINUTE = 2.08;
 
         const body = await req.json();
-        const { destination } = body;
+        const { destination, variant_id: driveVariantId } = body;
+
+        // If a variant_id is provided, look up the inventory location for origin
+        let ORIGIN_ADDRESS: string | null = null;
+        if (driveVariantId) {
+          const varGid = `gid://shopify/ProductVariant/${driveVariantId}`;
+          try {
+            const locData = await adminQuery(`
+              query VariantLocation($id: ID!) {
+                productVariant(id: $id) {
+                  inventoryItem {
+                    inventoryLevels(first: 1) {
+                      edges {
+                        node {
+                          location {
+                            name
+                            address {
+                              address1
+                              address2
+                              city
+                              province
+                              zip
+                              country
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `, { id: varGid });
+            const loc = locData.productVariant?.inventoryItem?.inventoryLevels?.edges?.[0]?.node?.location;
+            if (loc) {
+              const a = loc.address;
+              ORIGIN_ADDRESS = [a.address1, a.address2, a.city, a.province, a.zip, a.country].filter(Boolean).join(", ");
+              console.log(`Drive-time using inventory location: ${loc.name} — ${ORIGIN_ADDRESS}`);
+            }
+          } catch (err) {
+            console.error("Failed to fetch variant inventory location:", err);
+          }
+        }
+        if (!ORIGIN_ADDRESS) {
+          ORIGIN_ADDRESS = await getActiveOriginAddress();
+        }
 
         if (!destination) {
           return new Response(JSON.stringify({ error: "destination address required" }), {
