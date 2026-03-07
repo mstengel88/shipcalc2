@@ -117,12 +117,13 @@ serve(async (req) => {
       case "products": {
         const limit = parseInt(url.searchParams.get("limit") || "50", 10);
         const data = await adminQuery(`
-          query Products($first: Int!) {
+           query Products($first: Int!) {
             products(first: $first) {
               edges {
                 node {
                   id
                   title
+                  vendor
                   productType
                   tags
                   variants(first: 100) {
@@ -155,6 +156,7 @@ serve(async (req) => {
           return {
             id: extractGid(node.id),
             title: node.title,
+            vendor: node.vendor || "",
             product_type: node.productType,
             tags: node.tags.join(", "),
             variants: node.variants.edges.map((ve: any) => {
@@ -187,10 +189,11 @@ serve(async (req) => {
         }
         const gid = `gid://shopify/Product/${productId}`;
         const data = await adminQuery(`
-          query Product($id: ID!) {
+           query Product($id: ID!) {
             product(id: $id) {
               id
               title
+              vendor
               productType
               tags
               variants(first: 100) {
@@ -219,6 +222,7 @@ serve(async (req) => {
         const product = {
           id: extractGid(node.id),
           title: node.title,
+          vendor: node.vendor || "",
           product_type: node.productType,
           tags: node.tags.join(", "),
           variants: node.variants.edges.map((ve: any) => {
@@ -316,44 +320,37 @@ serve(async (req) => {
         const body = await req.json();
         const { destination, variant_id: driveVariantId } = body;
 
-        // If a variant_id is provided, look up the inventory location for origin
+        // If a variant_id is provided, look up vendor to match origin address
         let ORIGIN_ADDRESS: string | null = null;
         if (driveVariantId) {
           const varGid = `gid://shopify/ProductVariant/${driveVariantId}`;
           try {
             const locData = await adminQuery(`
-              query VariantLocation($id: ID!) {
+              query VariantVendor($id: ID!) {
                 productVariant(id: $id) {
-                  inventoryItem {
-                    inventoryLevels(first: 1) {
-                      edges {
-                        node {
-                          location {
-                            name
-                            address {
-                              address1
-                              address2
-                              city
-                              province
-                              zip
-                              country
-                            }
-                          }
-                        }
-                      }
-                    }
+                  product {
+                    vendor
                   }
                 }
               }
             `, { id: varGid });
-            const loc = locData.productVariant?.inventoryItem?.inventoryLevels?.edges?.[0]?.node?.location;
-            if (loc) {
-              const a = loc.address;
-              ORIGIN_ADDRESS = [a.address1, a.address2, a.city, a.province, a.zip, a.country].filter(Boolean).join(", ");
-              console.log(`Drive-time using inventory location: ${loc.name} — ${ORIGIN_ADDRESS}`);
+            const vendor = locData.productVariant?.product?.vendor;
+            if (vendor) {
+              const { data } = await supabaseAdmin
+                .from("origin_addresses")
+                .select("address")
+                .ilike("label", vendor)
+                .limit(1)
+                .single();
+              if (data?.address) {
+                ORIGIN_ADDRESS = data.address;
+                console.log(`Drive-time using vendor "${vendor}" origin: ${ORIGIN_ADDRESS}`);
+              } else {
+                console.log(`No origin address matched vendor "${vendor}"`);
+              }
             }
           } catch (err) {
-            console.error("Failed to fetch variant inventory location:", err);
+            console.error("Failed to fetch variant vendor:", err);
           }
         }
         if (!ORIGIN_ADDRESS) {
