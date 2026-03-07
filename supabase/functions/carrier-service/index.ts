@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const MAX_WEIGHT_GRAMS = 19958000; // 22 tons in grams (44,000 lbs)
+const MAX_QTY_PER_TRUCK = 22;
 const RATE_PER_MINUTE = 2.08;
 
 async function getActiveOriginAddress(): Promise<string> {
@@ -201,13 +201,11 @@ serve(async (req) => {
 
       console.log(`Item variant ${item.variant_id}: origin=${origin}`);
 
-      // Calculate item weight in grams
-      const itemTotalWeightGrams = (item.grams || 0) * (item.quantity || 1);
-      
-      // How many trucks needed for this line item based on weight
-      const trucksForItem = Math.max(1, Math.ceil(itemTotalWeightGrams / MAX_WEIGHT_GRAMS));
+      // How many trucks needed for this line item based on quantity
+      const itemQty = item.quantity || 1;
+      const trucksForItem = Math.max(1, Math.ceil(itemQty / MAX_QTY_PER_TRUCK));
 
-      console.log(`Item variant ${item.variant_id}: ${itemTotalWeightGrams}g total, ${trucksForItem} truck(s) needed`);
+      console.log(`Item variant ${item.variant_id}: qty=${itemQty}, ${trucksForItem} truck(s) needed`);
 
       // Get route cost (cache by origin to avoid duplicate Google Maps calls)
       const cacheKey = `${origin}|${destinationAddress}`;
