@@ -70,12 +70,21 @@ const ShippingCostCalculator = () => {
   }, []);
 
   const handleCalculate = async () => {
-    if (!destination.trim()) return;
+    // Pull the latest address from autocomplete if available
+    let addr = destination.trim();
+    if (autocompleteRef.current) {
+      const place = autocompleteRef.current.getPlace();
+      if (place?.formatted_address) {
+        addr = place.formatted_address;
+        setDestination(addr);
+      }
+    }
+    if (!addr) return;
     setLoading(true);
     setError(null);
     setQuote(null);
     try {
-      const result = await getDriveTimeQuote({ destination: destination.trim() });
+      const result = await getDriveTimeQuote({ destination: addr });
       setQuote(result);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to get quote");
