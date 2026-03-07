@@ -24,42 +24,17 @@ serve(async (req) => {
     .replace(/\/.*$/, "")
     .trim();
 
-  const CLIENT_ID = Deno.env.get("SHOPIFY_CLIENT_ID");
-  const CLIENT_SECRET = Deno.env.get("SHOPIFY_CLIENT_SECRET");
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    return new Response(JSON.stringify({ error: "SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET required" }), {
+  const accessToken = Deno.env.get("SHOPIFY_ADMIN_ACCESS_TOKEN");
+  if (!accessToken) {
+    return new Response(JSON.stringify({ error: "SHOPIFY_ADMIN_ACCESS_TOKEN required" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   console.log("Domain:", SHOPIFY_STORE_DOMAIN);
-  console.log("Client ID:", CLIENT_ID.substring(0, 8) + "...");
+  console.log("Access token prefix:", accessToken.substring(0, 10) + "...");
 
-  // Exchange client credentials for Admin API access token
-  async function getAccessToken(): Promise<string> {
-    const tokenUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/oauth/access_token`;
-    const res = await fetch(tokenUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        grant_type: "client_credentials",
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Token exchange failed [${res.status}]: ${errText}`);
-    }
-
-    const json = await res.json();
-    console.log("Got access token, prefix:", json.access_token?.substring(0, 10) + "...");
-    return json.access_token;
-  }
-
-  const accessToken = await getAccessToken();
   const adminUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10/graphql.json`;
 
   async function adminQuery(query: string, variables?: Record<string, unknown>) {
