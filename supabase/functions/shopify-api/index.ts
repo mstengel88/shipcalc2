@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -295,7 +296,7 @@ serve(async (req) => {
           });
         }
 
-        const ORIGIN_ADDRESS = "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+        const ORIGIN_ADDRESS = await getActiveOriginAddress();
         const RATE_PER_MINUTE = 2.08;
 
         const body = await req.json();
@@ -351,6 +352,143 @@ serve(async (req) => {
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      case "locations": {
+        const data = await adminQuery(`
+          query {
+            locations(first: 50) {
+              edges {
+                node {
+                  id
+                  name
+                  address {
+                    address1
+                    address2
+                    city
+                    province
+                    zip
+                    country
+                  }
+                }
+              }
+            }
+          }
+        `);
+
+        const locations = data.locations.edges.map((edge: any) => {
+          const n = edge.node;
+          const a = n.address;
+          const fullAddress = [a.address1, a.address2, a.city, a.province, a.zip, a.country].filter(Boolean).join(", ");
+          return {
+            id: extractGid(n.id),
+            name: n.name,
+            address: fullAddress,
+          };
+        });
+
+        return new Response(JSON.stringify({ locations }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "get_origins": {
+        const origins = await supabaseAdmin.from("origin_addresses").select("*").order("created_at");
+        return new Response(JSON.stringify({ origins: origins.data || [] }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "save_origin": {
+        if (req.method !== "POST") {
+          return new Response(JSON.stringify({ error: "POST required" }), {
+            status: 405,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const saveBody = await req.json();
+        const adminPassword = Deno.env.get("ADMIN_PASSWORD");
+        if (!adminPassword || saveBody.password !== adminPassword) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { label, address, is_active, id: originId } = saveBody;
+
+        // If setting active, deactivate others first
+        if (is_active) {
+          await supabaseAdmin.from("origin_addresses").update({ is_active: false, updated_at: new Date().toISOString() }).neq("id", originId || "");
+        }
+
+        if (originId) {
+          const { data, error: err } = await supabaseAdmin.from("origin_addresses")
+            .update({ label, address, is_active, updated_at: new Date().toISOString() })
+            .eq("id", originId)
+            .select()
+            .single();
+          if (err) throw new Error(err.message);
+          return new Response(JSON.stringify({ origin: data }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } else {
+          const { data, error: err } = await supabaseAdmin.from("origin_addresses")
+            .insert({ label, address, is_active })
+            .select()
+            .single();
+          if (err) throw new Error(err.message);
+          return new Response(JSON.stringify({ origin: data }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      case "delete_origin": {
+        if (req.method !== "POST") {
+          return new Response(JSON.stringify({ error: "POST required" }), {
+            status: 405,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const delBody = await req.json();
+        const delPassword = Deno.env.get("ADMIN_PASSWORD");
+        if (!delPassword || delBody.password !== delPassword) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        await supabaseAdmin.from("origin_addresses").delete().eq("id", delBody.id);
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "verify_admin": {
+        if (req.method !== "POST") {
+          return new Response(JSON.stringify({ error: "POST required" }), {
+            status: 405,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const verifyBody = await req.json();
+        const pw = Deno.env.get("ADMIN_PASSWORD");
+        if (!pw || verifyBody.password !== pw) {
+          return new Response(JSON.stringify({ valid: false }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ valid: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       case "register_carrier": {
