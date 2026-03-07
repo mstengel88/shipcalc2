@@ -372,6 +372,7 @@ serve(async (req) => {
           input: {
             name: "GHS Delivery",
             callbackUrl: callbackUrl,
+            active: true,
             supportsServiceDiscovery: false,
           },
         });
