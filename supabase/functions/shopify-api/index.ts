@@ -117,12 +117,13 @@ serve(async (req) => {
       case "products": {
         const limit = parseInt(url.searchParams.get("limit") || "50", 10);
         const data = await adminQuery(`
-          query Products($first: Int!) {
+           query Products($first: Int!) {
             products(first: $first) {
               edges {
                 node {
                   id
                   title
+                  vendor
                   productType
                   tags
                   variants(first: 100) {
@@ -155,6 +156,7 @@ serve(async (req) => {
           return {
             id: extractGid(node.id),
             title: node.title,
+            vendor: node.vendor || "",
             product_type: node.productType,
             tags: node.tags.join(", "),
             variants: node.variants.edges.map((ve: any) => {
@@ -187,10 +189,11 @@ serve(async (req) => {
         }
         const gid = `gid://shopify/Product/${productId}`;
         const data = await adminQuery(`
-          query Product($id: ID!) {
+           query Product($id: ID!) {
             product(id: $id) {
               id
               title
+              vendor
               productType
               tags
               variants(first: 100) {
@@ -219,6 +222,7 @@ serve(async (req) => {
         const product = {
           id: extractGid(node.id),
           title: node.title,
+          vendor: node.vendor || "",
           product_type: node.productType,
           tags: node.tags.join(", "),
           variants: node.variants.edges.map((ve: any) => {
