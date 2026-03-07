@@ -7,6 +7,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const supabaseAdmin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+);
+
+async function getActiveOriginAddress(): Promise<string> {
+  const { data } = await supabaseAdmin
+    .from("origin_addresses")
+    .select("address")
+    .eq("is_active", true)
+    .limit(1)
+    .single();
+  return data?.address || "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
