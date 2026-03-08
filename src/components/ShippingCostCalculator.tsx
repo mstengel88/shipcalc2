@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { MapPin, DollarSign, Loader2, Clock, Phone } from "lucide-react";
 import { getDriveTimeQuote, type DriveTimeQuoteResponse } from "@/lib/shopify-api";
-import { getDriveTimeQuote, type DriveTimeQuoteResponse } from "@/lib/shopify-api";
+import { supabase } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 
 declare global {
