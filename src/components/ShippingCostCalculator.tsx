@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { MapPin, DollarSign, Loader2, Clock } from "lucide-react";
+import { MapPin, DollarSign, Loader2, Clock, Phone } from "lucide-react";
 import { getDriveTimeQuote, type DriveTimeQuoteResponse } from "@/lib/shopify-api";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -182,11 +181,31 @@ const ShippingCostCalculator = () => {
           </div>
         )}
 
-        {quote && (
+        {quote && quote.beyond_mileage_limit && (
+          <div className="rounded-xl border-2 border-accent/30 bg-accent/10 p-6 space-y-3 text-center">
+            <Phone className="h-8 w-8 text-accent mx-auto" />
+            <p className="text-lg font-heading font-bold">Outside Delivery Area</p>
+            <p className="text-sm text-muted-foreground">
+              Your destination is {quote.one_way_distance_miles} miles away, which exceeds our {quote.max_miles}-mile delivery radius.
+            </p>
+            <p className="text-sm font-semibold">
+              Please call us for a custom shipping quote:
+            </p>
+            <a href="tel:+12625551234" className="inline-block text-xl font-mono font-bold text-primary hover:underline">
+              (262) 555-1234
+            </a>
+          </div>
+        )}
+
+        {quote && !quote.beyond_mileage_limit && (
           <div className="rounded-xl border-2 border-primary/20 bg-surface p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <span className="text-sm font-medium text-muted-foreground">Destination</span>
               <span className="font-mono text-sm font-semibold text-right max-w-[60%]">{quote.destination}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <span className="text-sm font-medium text-muted-foreground">Distance</span>
+              <span className="font-mono text-sm">{quote.one_way_distance_miles} miles</span>
             </div>
             <div className="flex items-center justify-between pt-1">
               <span className="text-lg font-heading font-bold">Total Cost</span>

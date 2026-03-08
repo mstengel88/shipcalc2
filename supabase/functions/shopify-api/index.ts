@@ -391,8 +391,10 @@ serve(async (req) => {
 
         const oneWaySeconds = element.duration.value;
         const oneWayMiles = element.distance.value / 1609.34;
+        const MAX_MILES = 50;
+        const beyondLimit = oneWayMiles > MAX_MILES;
         const roundTripMinutes = (oneWaySeconds * 2) / 60;
-        const totalCost = roundTripMinutes * RATE_PER_MINUTE;
+        const totalCost = beyondLimit ? 0 : roundTripMinutes * RATE_PER_MINUTE;
 
         return new Response(
           JSON.stringify({
@@ -404,6 +406,8 @@ serve(async (req) => {
             round_trip_minutes: Math.round(roundTripMinutes * 10) / 10,
             rate_per_minute: RATE_PER_MINUTE,
             total_cost: Math.round(totalCost * 100) / 100,
+            beyond_mileage_limit: beyondLimit,
+            max_miles: MAX_MILES,
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );

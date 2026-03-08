@@ -92,6 +92,8 @@ export interface DriveTimeQuoteResponse {
   round_trip_minutes: number;
   rate_per_minute: number;
   total_cost: number;
+  beyond_mileage_limit?: boolean;
+  max_miles?: number;
 }
 
 export async function getDriveTimeQuote(request: DriveTimeQuoteRequest): Promise<DriveTimeQuoteResponse> {

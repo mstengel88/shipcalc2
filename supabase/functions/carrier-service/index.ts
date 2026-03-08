@@ -182,6 +182,7 @@ serve(async (req) => {
 
     const items = rateRequest.items || [];
     const defaultOrigin = await getActiveOriginAddress();
+    const MAX_MILES = 50;
 
     // Group items by their origin address (vendor-based)
     // Each unique line item = 1 delivery, extra trucks if weight > 22 tons
@@ -218,6 +219,15 @@ serve(async (req) => {
         }
         routeCache[cacheKey] = result;
         routeCost = result;
+      }
+
+      // Check mileage limit — if ANY item is beyond 50 miles, return no rates
+      if (routeCost.oneWayMiles > MAX_MILES) {
+        console.log(`Item variant ${item.variant_id}: ${routeCost.oneWayMiles} miles exceeds ${MAX_MILES} mile limit — returning no rates`);
+        return new Response(JSON.stringify({ rates: [] }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       const itemDeliveryCost = routeCost.costDollars * trucksForItem;
