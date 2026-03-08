@@ -182,6 +182,7 @@ serve(async (req) => {
 
     const items = rateRequest.items || [];
     const defaultOrigin = await getActiveOriginAddress();
+    const MAX_MILES = 50;
 
     // Group items by their origin address (vendor-based)
     // Each unique line item = 1 delivery, extra trucks if weight > 22 tons
