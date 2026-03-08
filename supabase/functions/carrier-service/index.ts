@@ -221,6 +221,15 @@ serve(async (req) => {
         routeCost = result;
       }
 
+      // Check mileage limit — if ANY item is beyond 50 miles, return no rates
+      if (routeCost.oneWayMiles > MAX_MILES) {
+        console.log(`Item variant ${item.variant_id}: ${routeCost.oneWayMiles} miles exceeds ${MAX_MILES} mile limit — returning no rates`);
+        return new Response(JSON.stringify({ rates: [] }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const itemDeliveryCost = routeCost.costDollars * trucksForItem;
       totalDeliveryCostCents += Math.round(itemDeliveryCost * 100);
       totalTrucks += trucksForItem;
