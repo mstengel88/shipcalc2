@@ -189,8 +189,12 @@ serve(async (req) => {
     }
 
     const items = rateRequest.items || [];
-    const defaultOrigin = await getActiveOriginAddress();
-    const MAX_MILES = 50;
+    const settings = await getSettings();
+    const MAX_QTY_PER_TRUCK = parseInt(settings["max_qty_per_truck"] || "22", 10);
+    const RATE_PER_MINUTE = parseFloat(settings["rate_per_minute"] || "2.08");
+    const MAX_MILES = parseFloat(settings["max_miles"] || "50");
+    const DEFAULT_ORIGIN_FALLBACK = settings["default_origin"] || "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+    const defaultOrigin = await getActiveOriginAddress(DEFAULT_ORIGIN_FALLBACK);
 
     // Group items by their origin address (vendor-based)
     // Each unique line item = 1 delivery, extra trucks if weight > 22 tons
