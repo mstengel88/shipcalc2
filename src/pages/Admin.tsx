@@ -47,9 +47,10 @@ const Admin = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [o, l] = await Promise.all([fetchOrigins(), fetchShopifyLocations()]);
+    const [o, l, s] = await Promise.all([fetchOrigins(), fetchShopifyLocations(), fetchSettings()]);
     setOrigins(o);
     setLocations(l);
+    setSettings(s);
     setLoading(false);
   };
 
