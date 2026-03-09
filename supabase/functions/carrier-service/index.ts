@@ -23,14 +23,14 @@ async function getSettings(): Promise<Record<string, string>> {
   return map;
 }
 
-async function getActiveOriginAddress(): Promise<string> {
+async function getActiveOriginAddress(fallback: string): Promise<string> {
   const { data } = await supabaseAdmin
     .from("origin_addresses")
     .select("address")
     .eq("is_active", true)
     .limit(1)
     .single();
-  return data?.address || "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+  return data?.address || fallback;
 }
 
 async function getShopifyAccessToken(): Promise<string | null> {
