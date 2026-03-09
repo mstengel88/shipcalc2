@@ -12,8 +12,16 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const MAX_QTY_PER_TRUCK = 22;
-const RATE_PER_MINUTE = 2.08;
+// Settings loaded from DB at request time
+async function getSettings(): Promise<Record<string, string>> {
+  const { data } = await supabaseAdmin
+    .from("app_settings")
+    .select("key, value")
+    .in("key", ["max_qty_per_truck", "rate_per_minute", "max_miles", "default_origin"]);
+  const map: Record<string, string> = {};
+  for (const r of data || []) map[r.key] = r.value;
+  return map;
+}
 
 async function getActiveOriginAddress(): Promise<string> {
   const { data } = await supabaseAdmin
