@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { MapPin, DollarSign, Loader2, Clock, Phone } from "lucide-react";
@@ -38,6 +38,22 @@ function loadGoogleMapsScript(): Promise<void> {
   });
 }
 
+interface DisplayToggles {
+  show_origin: boolean;
+  show_distance: boolean;
+  show_destination: boolean;
+  show_drive_time: boolean;
+  show_rate_breakdown: boolean;
+}
+
+const DEFAULT_TOGGLES: DisplayToggles = {
+  show_origin: true,
+  show_distance: true,
+  show_destination: true,
+  show_drive_time: false,
+  show_rate_breakdown: false,
+};
+
 const ShippingCostCalculator = () => {
   const [destination, setDestination] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,21 +61,32 @@ const ShippingCostCalculator = () => {
   const [quote, setQuote] = useState<DriveTimeQuoteResponse | null>(null);
   const [originLabel, setOriginLabel] = useState("Menomonee Falls, WI 53051");
   const [phoneNumber, setPhoneNumber] = useState("(262) 345-4001");
+  const [toggles, setToggles] = useState<DisplayToggles>(DEFAULT_TOGGLES);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const selectedAddressRef = useRef<string>("");
   const pendingSubmitRef = useRef(false);
 
   useEffect(() => {
-    // Load origin label and phone number
     const loadInfo = async () => {
       const [originRes, settingsRes] = await Promise.all([
         supabase.from("origin_addresses").select("label, address").eq("is_active", true).limit(1).single(),
-        supabase.from("app_settings").select("key, value").in("key", ["phone_number"]),
+        supabase.from("app_settings").select("key, value"),
       ]);
       if (originRes.data) setOriginLabel(`${originRes.data.label} — ${originRes.data.address}`);
-      const phone = settingsRes.data?.find((s) => s.key === "phone_number");
-      if (phone) setPhoneNumber(phone.value);
+      
+      const settingsMap: Record<string, string> = {};
+      for (const s of settingsRes.data || []) settingsMap[s.key] = s.value;
+      
+      if (settingsMap.phone_number) setPhoneNumber(settingsMap.phone_number);
+      
+      setToggles({
+        show_origin: settingsMap.show_origin !== "false",
+        show_distance: settingsMap.show_distance !== "false",
+        show_destination: settingsMap.show_destination !== "false",
+        show_drive_time: settingsMap.show_drive_time === "true",
+        show_rate_breakdown: settingsMap.show_rate_breakdown === "true",
+      });
     };
     loadInfo();
   }, []);
@@ -96,7 +123,6 @@ const ShippingCostCalculator = () => {
         if (place?.formatted_address) {
           selectedAddressRef.current = place.formatted_address;
           setDestination(place.formatted_address);
-          // If user pressed Enter while dropdown was open, submit now
           if (pendingSubmitRef.current) {
             pendingSubmitRef.current = false;
             doCalculate(place.formatted_address);
@@ -116,13 +142,10 @@ const ShippingCostCalculator = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      // If we already have a selected address, submit immediately
       if (selectedAddressRef.current) {
         doCalculate(selectedAddressRef.current);
       } else {
-        // Mark pending — place_changed will fire after autocomplete selects, then we submit
         pendingSubmitRef.current = true;
-        // Fallback: if no place_changed fires within 500ms, try with raw text
         setTimeout(() => {
           if (pendingSubmitRef.current) {
             pendingSubmitRef.current = false;
@@ -159,9 +182,11 @@ const ShippingCostCalculator = () => {
             onKeyDown={handleKeyDown}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
           />
-          <p className="text-xs text-muted-foreground">
-            Origin: {originLabel}
-          </p>
+          {toggles.show_origin && (
+            <p className="text-xs text-muted-foreground">
+              Origin: {originLabel}
+            </p>
+          )}
         </div>
 
         <Button
@@ -202,14 +227,30 @@ const ShippingCostCalculator = () => {
 
         {quote && !quote.beyond_mileage_limit && (
           <div className="rounded-xl border-2 border-primary/20 bg-surface p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <span className="text-sm font-medium text-muted-foreground">Destination</span>
-              <span className="font-mono text-sm font-semibold text-right max-w-[60%]">{quote.destination}</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <span className="text-sm font-medium text-muted-foreground">Distance</span>
-              <span className="font-mono text-sm">{quote.one_way_distance_miles} miles</span>
-            </div>
+            {toggles.show_destination && (
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <span className="text-sm font-medium text-muted-foreground">Destination</span>
+                <span className="font-mono text-sm font-semibold text-right max-w-[60%]">{quote.destination}</span>
+              </div>
+            )}
+            {toggles.show_distance && (
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <span className="text-sm font-medium text-muted-foreground">Distance</span>
+                <span className="font-mono text-sm">{quote.one_way_distance_miles} miles</span>
+              </div>
+            )}
+            {toggles.show_drive_time && (
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <span className="text-sm font-medium text-muted-foreground">Drive Time</span>
+                <span className="font-mono text-sm">{quote.one_way_duration_text}</span>
+              </div>
+            )}
+            {toggles.show_rate_breakdown && (
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <span className="text-sm font-medium text-muted-foreground">Rate</span>
+                <span className="font-mono text-sm">${quote.rate_per_minute}/min × {quote.round_trip_minutes} min round trip</span>
+              </div>
+            )}
             <div className="flex items-center justify-between pt-1">
               <span className="text-lg font-heading font-bold">Total Cost</span>
               <span className="font-mono text-2xl font-bold text-primary">${quote.total_cost.toFixed(2)}</span>
