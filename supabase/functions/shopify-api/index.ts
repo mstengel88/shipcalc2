@@ -529,6 +529,42 @@ serve(async (req) => {
         });
       }
 
+      case "get_settings": {
+        const { data } = await supabaseAdmin.from("app_settings").select("*").order("key");
+        return new Response(JSON.stringify({ settings: data || [] }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "save_setting": {
+        if (req.method !== "POST") {
+          return new Response(JSON.stringify({ error: "POST required" }), {
+            status: 405,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const settingBody = await req.json();
+        const settingPw = Deno.env.get("ADMIN_PASSWORD");
+        if (!settingPw || settingBody.password !== settingPw) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data: settingData, error: settingErr } = await supabaseAdmin
+          .from("app_settings")
+          .update({ value: settingBody.value, updated_at: new Date().toISOString() })
+          .eq("key", settingBody.key)
+          .select()
+          .single();
+        if (settingErr) throw new Error(settingErr.message);
+        return new Response(JSON.stringify({ setting: settingData }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "verify_admin": {
         if (req.method !== "POST") {
           return new Response(JSON.stringify({ error: "POST required" }), {
