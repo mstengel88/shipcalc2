@@ -10,9 +10,12 @@ import {
   saveOrigin,
   deleteOrigin,
   fetchShopifyLocations,
+  fetchSettings,
   type OriginAddress,
   type ShopifyLocation,
+  type AppSetting,
 } from "@/lib/admin-api";
+import SettingsCard from "@/components/admin/SettingsCard";
 
 const Admin = () => {
   const [password, setPassword] = useState("");
