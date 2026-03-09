@@ -418,42 +418,50 @@ serve(async (req) => {
       }
 
       case "locations": {
-        const data = await adminQuery(`
-          query {
-            locations(first: 50) {
-              edges {
-                node {
-                  id
-                  name
-                  address {
-                    address1
-                    address2
-                    city
-                    province
-                    zip
-                    country
+        try {
+          const data = await adminQuery(`
+            query {
+              locations(first: 50) {
+                edges {
+                  node {
+                    id
+                    name
+                    address {
+                      address1
+                      address2
+                      city
+                      province
+                      zip
+                      country
+                    }
                   }
                 }
               }
             }
-          }
-        `);
+          `);
 
-        const locations = data.locations.edges.map((edge: any) => {
-          const n = edge.node;
-          const a = n.address;
-          const fullAddress = [a.address1, a.address2, a.city, a.province, a.zip, a.country].filter(Boolean).join(", ");
-          return {
-            id: extractGid(n.id),
-            name: n.name,
-            address: fullAddress,
-          };
-        });
+          const locations = data.locations.edges.map((edge: any) => {
+            const n = edge.node;
+            const a = n.address;
+            const fullAddress = [a.address1, a.address2, a.city, a.province, a.zip, a.country].filter(Boolean).join(", ");
+            return {
+              id: extractGid(n.id),
+              name: n.name,
+              address: fullAddress,
+            };
+          });
 
-        return new Response(JSON.stringify({ locations }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+          return new Response(JSON.stringify({ locations }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (err) {
+          console.warn("Locations fetch failed (likely missing read_locations scope):", err);
+          return new Response(JSON.stringify({ locations: [], warning: "Locations unavailable — app may need read_locations scope" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       case "get_origins": {
