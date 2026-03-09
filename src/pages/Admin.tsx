@@ -25,6 +25,7 @@ const Admin = () => {
 
   const [origins, setOrigins] = useState<OriginAddress[]>([]);
   const [locations, setLocations] = useState<ShopifyLocation[]>([]);
+  const [settings, setSettings] = useState<AppSetting[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
