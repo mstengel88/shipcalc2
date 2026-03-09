@@ -395,7 +395,7 @@ serve(async (req) => {
 
         const oneWaySeconds = element.duration.value;
         const oneWayMiles = element.distance.value / 1609.34;
-        const MAX_MILES = 50;
+        const MAX_MILES = parseFloat(settingsMap["max_miles"] || "50");
         const beyondLimit = oneWayMiles > MAX_MILES;
         const roundTripMinutes = (oneWaySeconds * 2) / 60;
         const totalCost = beyondLimit ? 0 : roundTripMinutes * RATE_PER_MINUTE;
