@@ -194,8 +194,8 @@ const ShippingCostCalculator = () => {
             <p className="text-sm font-semibold">
               Please call us for a custom shipping quote:
             </p>
-            <a href="tel:+12623454001" className="inline-block text-xl font-mono font-bold text-primary hover:underline">
-              (262) 345-4001
+            <a href={`tel:${phoneNumber.replace(/[^\d+]/g, '')}`} className="inline-block text-xl font-mono font-bold text-primary hover:underline">
+              {phoneNumber}
             </a>
           </div>
         )}
