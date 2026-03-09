@@ -315,7 +315,11 @@ serve(async (req) => {
           });
         }
 
-        const RATE_PER_MINUTE = 2.08;
+        // Load settings from DB
+        const { data: settingsRows } = await supabaseAdmin.from("app_settings").select("key, value").in("key", ["rate_per_minute", "max_miles"]);
+        const settingsMap: Record<string, string> = {};
+        for (const r of settingsRows || []) settingsMap[r.key] = r.value;
+        const RATE_PER_MINUTE = parseFloat(settingsMap["rate_per_minute"] || "2.08");
 
         const body = await req.json();
         const { destination, variant_id: driveVariantId } = body;
