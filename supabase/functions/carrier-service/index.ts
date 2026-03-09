@@ -12,17 +12,25 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const MAX_QTY_PER_TRUCK = 22;
-const RATE_PER_MINUTE = 2.08;
+// Settings loaded from DB at request time
+async function getSettings(): Promise<Record<string, string>> {
+  const { data } = await supabaseAdmin
+    .from("app_settings")
+    .select("key, value")
+    .in("key", ["max_qty_per_truck", "rate_per_minute", "max_miles", "default_origin"]);
+  const map: Record<string, string> = {};
+  for (const r of data || []) map[r.key] = r.value;
+  return map;
+}
 
-async function getActiveOriginAddress(): Promise<string> {
+async function getActiveOriginAddress(fallback: string): Promise<string> {
   const { data } = await supabaseAdmin
     .from("origin_addresses")
     .select("address")
     .eq("is_active", true)
     .limit(1)
     .single();
-  return data?.address || "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+  return data?.address || fallback;
 }
 
 async function getShopifyAccessToken(): Promise<string | null> {
@@ -181,8 +189,12 @@ serve(async (req) => {
     }
 
     const items = rateRequest.items || [];
-    const defaultOrigin = await getActiveOriginAddress();
-    const MAX_MILES = 50;
+    const settings = await getSettings();
+    const MAX_QTY_PER_TRUCK = parseInt(settings["max_qty_per_truck"] || "22", 10);
+    const RATE_PER_MINUTE = parseFloat(settings["rate_per_minute"] || "2.08");
+    const MAX_MILES = parseFloat(settings["max_miles"] || "50");
+    const DEFAULT_ORIGIN_FALLBACK = settings["default_origin"] || "W185 N7487, Narrow Ln, Menomonee Falls, WI 53051";
+    const defaultOrigin = await getActiveOriginAddress(DEFAULT_ORIGIN_FALLBACK);
 
     // Group items by their origin address (vendor-based)
     // Each unique line item = 1 delivery, extra trucks if weight > 22 tons

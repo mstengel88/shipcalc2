@@ -20,6 +20,14 @@ export interface ShopifyLocation {
   address: string;
 }
 
+export interface AppSetting {
+  key: string;
+  value: string;
+  label: string;
+  description: string;
+  updated_at: string;
+}
+
 export async function verifyAdminPassword(password: string): Promise<boolean> {
   const res = await fetch(`${BASE}?action=verify_admin`, {
     method: "POST",
@@ -63,4 +71,25 @@ export async function fetchShopifyLocations(): Promise<ShopifyLocation[]> {
   const res = await fetch(`${BASE}?action=locations`, { headers: HEADERS });
   const data = await res.json();
   return data.locations || [];
+}
+
+export async function fetchSettings(): Promise<AppSetting[]> {
+  const res = await fetch(`${BASE}?action=get_settings`, { headers: HEADERS });
+  const data = await res.json();
+  return data.settings || [];
+}
+
+export async function saveSetting(
+  password: string,
+  key: string,
+  value: string
+): Promise<AppSetting> {
+  const res = await fetch(`${BASE}?action=save_setting`, {
+    method: "POST",
+    headers: HEADERS,
+    body: JSON.stringify({ password, key, value }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || "Failed to save setting");
+  const data = await res.json();
+  return data.setting;
 }

@@ -10,9 +10,12 @@ import {
   saveOrigin,
   deleteOrigin,
   fetchShopifyLocations,
+  fetchSettings,
   type OriginAddress,
   type ShopifyLocation,
+  type AppSetting,
 } from "@/lib/admin-api";
+import SettingsCard from "@/components/admin/SettingsCard";
 
 const Admin = () => {
   const [password, setPassword] = useState("");
@@ -22,6 +25,7 @@ const Admin = () => {
 
   const [origins, setOrigins] = useState<OriginAddress[]>([]);
   const [locations, setLocations] = useState<ShopifyLocation[]>([]);
+  const [settings, setSettings] = useState<AppSetting[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -43,9 +47,10 @@ const Admin = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [o, l] = await Promise.all([fetchOrigins(), fetchShopifyLocations()]);
+    const [o, l, s] = await Promise.all([fetchOrigins(), fetchShopifyLocations(), fetchSettings()]);
     setOrigins(o);
     setLocations(l);
+    setSettings(s);
     setLoading(false);
   };
 
@@ -189,6 +194,9 @@ const Admin = () => {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Settings */}
+            <SettingsCard settings={settings} password={password} onSaved={loadData} />
 
             {/* Shopify locations */}
             {locations.length > 0 && (

@@ -315,7 +315,11 @@ serve(async (req) => {
           });
         }
 
-        const RATE_PER_MINUTE = 2.08;
+        // Load settings from DB
+        const { data: settingsRows } = await supabaseAdmin.from("app_settings").select("key, value").in("key", ["rate_per_minute", "max_miles"]);
+        const settingsMap: Record<string, string> = {};
+        for (const r of settingsRows || []) settingsMap[r.key] = r.value;
+        const RATE_PER_MINUTE = parseFloat(settingsMap["rate_per_minute"] || "2.08");
 
         const body = await req.json();
         const { destination, variant_id: driveVariantId } = body;
@@ -391,7 +395,7 @@ serve(async (req) => {
 
         const oneWaySeconds = element.duration.value;
         const oneWayMiles = element.distance.value / 1609.34;
-        const MAX_MILES = 50;
+        const MAX_MILES = parseFloat(settingsMap["max_miles"] || "50");
         const beyondLimit = oneWayMiles > MAX_MILES;
         const roundTripMinutes = (oneWaySeconds * 2) / 60;
         const totalCost = beyondLimit ? 0 : roundTripMinutes * RATE_PER_MINUTE;
@@ -524,6 +528,42 @@ serve(async (req) => {
         }
         await supabaseAdmin.from("origin_addresses").delete().eq("id", delBody.id);
         return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "get_settings": {
+        const { data } = await supabaseAdmin.from("app_settings").select("*").order("key");
+        return new Response(JSON.stringify({ settings: data || [] }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "save_setting": {
+        if (req.method !== "POST") {
+          return new Response(JSON.stringify({ error: "POST required" }), {
+            status: 405,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const settingBody = await req.json();
+        const settingPw = Deno.env.get("ADMIN_PASSWORD");
+        if (!settingPw || settingBody.password !== settingPw) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data: settingData, error: settingErr } = await supabaseAdmin
+          .from("app_settings")
+          .update({ value: settingBody.value, updated_at: new Date().toISOString() })
+          .eq("key", settingBody.key)
+          .select()
+          .single();
+        if (settingErr) throw new Error(settingErr.message);
+        return new Response(JSON.stringify({ setting: settingData }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

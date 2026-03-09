@@ -44,21 +44,24 @@ const ShippingCostCalculator = () => {
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<DriveTimeQuoteResponse | null>(null);
   const [originLabel, setOriginLabel] = useState("Menomonee Falls, WI 53051");
+  const [phoneNumber, setPhoneNumber] = useState("(262) 345-4001");
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const selectedAddressRef = useRef<string>("");
   const pendingSubmitRef = useRef(false);
 
   useEffect(() => {
-    supabase
-      .from("origin_addresses")
-      .select("label, address")
-      .eq("is_active", true)
-      .limit(1)
-      .single()
-      .then(({ data }) => {
-        if (data) setOriginLabel(`${data.label} — ${data.address}`);
-      });
+    // Load origin label and phone number
+    const loadInfo = async () => {
+      const [originRes, settingsRes] = await Promise.all([
+        supabase.from("origin_addresses").select("label, address").eq("is_active", true).limit(1).single(),
+        supabase.from("app_settings").select("key, value").in("key", ["phone_number"]),
+      ]);
+      if (originRes.data) setOriginLabel(`${originRes.data.label} — ${originRes.data.address}`);
+      const phone = settingsRes.data?.find((s) => s.key === "phone_number");
+      if (phone) setPhoneNumber(phone.value);
+    };
+    loadInfo();
   }, []);
 
   const doCalculate = useCallback(async (addr: string) => {
@@ -191,8 +194,8 @@ const ShippingCostCalculator = () => {
             <p className="text-sm font-semibold">
               Please call us for a custom shipping quote:
             </p>
-            <a href="tel:+12623454001" className="inline-block text-xl font-mono font-bold text-primary hover:underline">
-              (262) 345-4001
+            <a href={`tel:${phoneNumber.replace(/[^\d+]/g, '')}`} className="inline-block text-xl font-mono font-bold text-primary hover:underline">
+              {phoneNumber}
             </a>
           </div>
         )}
