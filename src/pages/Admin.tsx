@@ -16,6 +16,7 @@ import {
   type AppSetting,
 } from "@/lib/admin-api";
 import SettingsCard from "@/components/admin/SettingsCard";
+import StylingCard from "@/components/admin/StylingCard";
 
 const Admin = () => {
   const [password, setPassword] = useState("");
@@ -197,6 +198,9 @@ const Admin = () => {
 
             {/* Settings */}
             <SettingsCard settings={settings} password={password} onSaved={loadData} />
+
+            {/* Styling */}
+            <StylingCard settings={settings} password={password} onSaved={loadData} />
 
             {/* Shopify locations */}
             {locations.length > 0 && (

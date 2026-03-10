@@ -46,12 +46,30 @@ interface DisplayToggles {
   show_rate_breakdown: boolean;
 }
 
+interface StyleConfig {
+  font: string;
+  bgColor: string;
+  textColor: string;
+  buttonColor: string;
+  buttonTextColor: string;
+  accentColor: string;
+}
+
 const DEFAULT_TOGGLES: DisplayToggles = {
   show_origin: true,
   show_distance: true,
   show_destination: true,
   show_drive_time: false,
   show_rate_breakdown: false,
+};
+
+const DEFAULT_STYLES: StyleConfig = {
+  font: "Space Grotesk",
+  bgColor: "#ffffff",
+  textColor: "#1a1a2e",
+  buttonColor: "#e85d04",
+  buttonTextColor: "#ffffff",
+  accentColor: "#e85d04",
 };
 
 const ShippingCostCalculator = () => {
@@ -62,6 +80,7 @@ const ShippingCostCalculator = () => {
   const [originLabel, setOriginLabel] = useState("Menomonee Falls, WI 53051");
   const [phoneNumber, setPhoneNumber] = useState("(262) 345-4001");
   const [toggles, setToggles] = useState<DisplayToggles>(DEFAULT_TOGGLES);
+  const [styles, setStyles] = useState<StyleConfig>(DEFAULT_STYLES);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const selectedAddressRef = useRef<string>("");
@@ -86,6 +105,15 @@ const ShippingCostCalculator = () => {
         show_destination: settingsMap.show_destination !== "false",
         show_drive_time: settingsMap.show_drive_time === "true",
         show_rate_breakdown: settingsMap.show_rate_breakdown === "true",
+      });
+      
+      setStyles({
+        font: settingsMap.style_font || DEFAULT_STYLES.font,
+        bgColor: settingsMap.style_bg_color || DEFAULT_STYLES.bgColor,
+        textColor: settingsMap.style_text_color || DEFAULT_STYLES.textColor,
+        buttonColor: settingsMap.style_button_color || DEFAULT_STYLES.buttonColor,
+        buttonTextColor: settingsMap.style_button_text_color || DEFAULT_STYLES.buttonTextColor,
+        accentColor: settingsMap.style_accent_color || DEFAULT_STYLES.accentColor,
       });
     };
     loadInfo();
@@ -157,22 +185,24 @@ const ShippingCostCalculator = () => {
     }
   };
 
+  const fontFamily = `'${styles.font}', sans-serif`;
+
   return (
-    <Card className="border-2">
-      <CardHeader className="border-b border-border bg-surface/50">
+    <Card className="border-2" style={{ backgroundColor: styles.bgColor, color: styles.textColor, fontFamily }}>
+      <CardHeader className="border-b" style={{ borderColor: `${styles.accentColor}22`, backgroundColor: `${styles.bgColor}ee` }}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Clock className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: styles.accentColor }}>
+            <Clock className="h-5 w-5" style={{ color: styles.buttonTextColor }} />
           </div>
           <div>
-            <CardTitle className="font-heading text-xl">Delivery Cost Calculator</CardTitle>
+            <CardTitle className="text-xl" style={{ fontFamily, color: styles.textColor }}>Delivery Cost Calculator</CardTitle>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
         <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <MapPin className="h-3.5 w-3.5 text-primary" /> Delivery Address
+          <Label className="flex items-center gap-2 text-sm font-medium" style={{ color: styles.textColor }}>
+            <MapPin className="h-3.5 w-3.5" style={{ color: styles.accentColor }} /> Delivery Address
           </Label>
           <input
             ref={inputRef}
@@ -180,80 +210,80 @@ const ShippingCostCalculator = () => {
             defaultValue={destination}
             onChange={(e) => { setDestination(e.target.value); selectedAddressRef.current = ""; }}
             onKeyDown={handleKeyDown}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            className="flex h-10 w-full rounded-md border px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            style={{ borderColor: `${styles.textColor}33`, backgroundColor: styles.bgColor, color: styles.textColor, fontFamily }}
           />
           {toggles.show_origin && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs" style={{ color: `${styles.textColor}88` }}>
               Origin: {originLabel}
             </p>
           )}
         </div>
 
-        <Button
+        <button
           onClick={handleCalculate}
           disabled={!destination.trim() || loading}
-          className="w-full font-heading text-base font-semibold tracking-wide"
-          size="lg"
+          className="w-full rounded-md px-4 py-3 text-base font-semibold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: styles.buttonColor, color: styles.buttonTextColor, fontFamily }}
         >
           {loading ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            <span className="inline-flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Calculating Route…</span>
           ) : (
-            <DollarSign className="mr-2 h-5 w-5" />
+            <span className="inline-flex items-center"><DollarSign className="mr-2 h-5 w-5" /> Get Delivery Quote</span>
           )}
-          {loading ? "Calculating Route…" : "Get Delivery Quote"}
-        </Button>
+        </button>
 
         {error && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="rounded-lg border p-4 text-sm" style={{ borderColor: '#ef444455', backgroundColor: '#ef44441a', color: '#ef4444' }}>
             {error}
           </div>
         )}
 
         {quote && quote.beyond_mileage_limit && (
-          <div className="rounded-xl border-2 border-accent/30 bg-accent/10 p-6 space-y-3 text-center">
-            <Phone className="h-8 w-8 text-accent mx-auto" />
-            <p className="text-lg font-heading font-bold">Outside Delivery Area</p>
-            <p className="text-sm text-muted-foreground">
+          <div className="rounded-xl border-2 p-6 space-y-3 text-center" style={{ borderColor: `${styles.accentColor}44`, backgroundColor: `${styles.accentColor}11` }}>
+            <Phone className="h-8 w-8 mx-auto" style={{ color: styles.accentColor }} />
+            <p className="text-lg font-bold" style={{ fontFamily }}>Outside Delivery Area</p>
+            <p className="text-sm" style={{ color: `${styles.textColor}88` }}>
               Your destination is {quote.one_way_distance_miles} miles away, which exceeds our {quote.max_miles}-mile delivery radius.
             </p>
             <p className="text-sm font-semibold">
               Please call us for a custom shipping quote:
             </p>
-            <a href={`tel:${phoneNumber.replace(/[^\d+]/g, '')}`} className="inline-block text-xl font-mono font-bold text-primary hover:underline">
+            <a href={`tel:${phoneNumber.replace(/[^\d+]/g, '')}`} className="inline-block text-xl font-mono font-bold hover:underline" style={{ color: styles.accentColor }}>
               {phoneNumber}
             </a>
           </div>
         )}
 
         {quote && !quote.beyond_mileage_limit && (
-          <div className="rounded-xl border-2 border-primary/20 bg-surface p-6 space-y-4">
+          <div className="rounded-xl border-2 p-6 space-y-4" style={{ borderColor: `${styles.accentColor}33`, backgroundColor: `${styles.bgColor}` }}>
             {toggles.show_destination && (
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <span className="text-sm font-medium text-muted-foreground">Destination</span>
+              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: `${styles.textColor}22` }}>
+                <span className="text-sm font-medium" style={{ color: `${styles.textColor}88` }}>Destination</span>
                 <span className="font-mono text-sm font-semibold text-right max-w-[60%]">{quote.destination}</span>
               </div>
             )}
             {toggles.show_distance && (
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <span className="text-sm font-medium text-muted-foreground">Distance</span>
+              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: `${styles.textColor}22` }}>
+                <span className="text-sm font-medium" style={{ color: `${styles.textColor}88` }}>Distance</span>
                 <span className="font-mono text-sm">{quote.one_way_distance_miles} miles</span>
               </div>
             )}
             {toggles.show_drive_time && (
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <span className="text-sm font-medium text-muted-foreground">Drive Time</span>
+              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: `${styles.textColor}22` }}>
+                <span className="text-sm font-medium" style={{ color: `${styles.textColor}88` }}>Drive Time</span>
                 <span className="font-mono text-sm">{quote.one_way_duration_text}</span>
               </div>
             )}
             {toggles.show_rate_breakdown && (
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <span className="text-sm font-medium text-muted-foreground">Rate</span>
+              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: `${styles.textColor}22` }}>
+                <span className="text-sm font-medium" style={{ color: `${styles.textColor}88` }}>Rate</span>
                 <span className="font-mono text-sm">${quote.rate_per_minute}/min × {quote.round_trip_minutes} min round trip</span>
               </div>
             )}
             <div className="flex items-center justify-between pt-1">
-              <span className="text-lg font-heading font-bold">Total Cost</span>
-              <span className="font-mono text-2xl font-bold text-primary">${quote.total_cost.toFixed(2)}</span>
+              <span className="text-lg font-bold" style={{ fontFamily }}>Total Cost</span>
+              <span className="font-mono text-2xl font-bold" style={{ color: styles.accentColor }}>${quote.total_cost.toFixed(2)}</span>
             </div>
           </div>
         )}
