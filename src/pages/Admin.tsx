@@ -199,6 +199,9 @@ const Admin = () => {
             {/* Settings */}
             <SettingsCard settings={settings} password={password} onSaved={loadData} />
 
+            {/* Styling */}
+            <StylingCard settings={settings} password={password} onSaved={loadData} />
+
             {/* Shopify locations */}
             {locations.length > 0 && (
               <Card className="border-2">
