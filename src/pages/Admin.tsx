@@ -16,6 +16,7 @@ import {
   type AppSetting,
 } from "@/lib/admin-api";
 import SettingsCard from "@/components/admin/SettingsCard";
+import StylingCard from "@/components/admin/StylingCard";
 
 const Admin = () => {
   const [password, setPassword] = useState("");
