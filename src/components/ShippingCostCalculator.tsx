@@ -80,6 +80,7 @@ const ShippingCostCalculator = () => {
   const [originLabel, setOriginLabel] = useState("Menomonee Falls, WI 53051");
   const [phoneNumber, setPhoneNumber] = useState("(262) 345-4001");
   const [toggles, setToggles] = useState<DisplayToggles>(DEFAULT_TOGGLES);
+  const [styles, setStyles] = useState<StyleConfig>(DEFAULT_STYLES);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const selectedAddressRef = useRef<string>("");
