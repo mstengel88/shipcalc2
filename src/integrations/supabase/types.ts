@@ -17,23 +17,44 @@ export type Database = {
       app_settings: {
         Row: {
           description: string
+          enable_calculated_rates: boolean | null
+          enable_debug_logging: boolean | null
+          enable_remote_surcharge: boolean | null
           key: string
           label: string
+          shop: string | null
+          show_vendor_source: boolean | null
+          test_flat_rate_cents: number | null
           updated_at: string
+          use_test_flat_rate: boolean | null
           value: string
         }
         Insert: {
           description?: string
+          enable_calculated_rates?: boolean | null
+          enable_debug_logging?: boolean | null
+          enable_remote_surcharge?: boolean | null
           key: string
           label?: string
+          shop?: string | null
+          show_vendor_source?: boolean | null
+          test_flat_rate_cents?: number | null
           updated_at?: string
+          use_test_flat_rate?: boolean | null
           value: string
         }
         Update: {
           description?: string
+          enable_calculated_rates?: boolean | null
+          enable_debug_logging?: boolean | null
+          enable_remote_surcharge?: boolean | null
           key?: string
           label?: string
+          shop?: string | null
+          show_vendor_source?: boolean | null
+          test_flat_rate_cents?: number | null
           updated_at?: string
+          use_test_flat_rate?: boolean | null
           value?: string
         }
         Relationships: []
@@ -62,6 +83,39 @@ export type Database = {
           is_active?: boolean
           label?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      shopify_app_settings: {
+        Row: {
+          enable_calculated_rates: boolean | null
+          enable_debug_logging: boolean | null
+          enable_remote_surcharge: boolean | null
+          shop: string
+          show_vendor_source: boolean | null
+          test_flat_rate_cents: number | null
+          updated_at: string | null
+          use_test_flat_rate: boolean | null
+        }
+        Insert: {
+          enable_calculated_rates?: boolean | null
+          enable_debug_logging?: boolean | null
+          enable_remote_surcharge?: boolean | null
+          shop: string
+          show_vendor_source?: boolean | null
+          test_flat_rate_cents?: number | null
+          updated_at?: string | null
+          use_test_flat_rate?: boolean | null
+        }
+        Update: {
+          enable_calculated_rates?: boolean | null
+          enable_debug_logging?: boolean | null
+          enable_remote_surcharge?: boolean | null
+          shop?: string
+          show_vendor_source?: boolean | null
+          test_flat_rate_cents?: number | null
+          updated_at?: string | null
+          use_test_flat_rate?: boolean | null
         }
         Relationships: []
       }
