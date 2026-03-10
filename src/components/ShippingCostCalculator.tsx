@@ -46,12 +46,30 @@ interface DisplayToggles {
   show_rate_breakdown: boolean;
 }
 
+interface StyleConfig {
+  font: string;
+  bgColor: string;
+  textColor: string;
+  buttonColor: string;
+  buttonTextColor: string;
+  accentColor: string;
+}
+
 const DEFAULT_TOGGLES: DisplayToggles = {
   show_origin: true,
   show_distance: true,
   show_destination: true,
   show_drive_time: false,
   show_rate_breakdown: false,
+};
+
+const DEFAULT_STYLES: StyleConfig = {
+  font: "Space Grotesk",
+  bgColor: "#ffffff",
+  textColor: "#1a1a2e",
+  buttonColor: "#e85d04",
+  buttonTextColor: "#ffffff",
+  accentColor: "#e85d04",
 };
 
 const ShippingCostCalculator = () => {
