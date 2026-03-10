@@ -106,6 +106,15 @@ const ShippingCostCalculator = () => {
         show_drive_time: settingsMap.show_drive_time === "true",
         show_rate_breakdown: settingsMap.show_rate_breakdown === "true",
       });
+      
+      setStyles({
+        font: settingsMap.style_font || DEFAULT_STYLES.font,
+        bgColor: settingsMap.style_bg_color || DEFAULT_STYLES.bgColor,
+        textColor: settingsMap.style_text_color || DEFAULT_STYLES.textColor,
+        buttonColor: settingsMap.style_button_color || DEFAULT_STYLES.buttonColor,
+        buttonTextColor: settingsMap.style_button_text_color || DEFAULT_STYLES.buttonTextColor,
+        accentColor: settingsMap.style_accent_color || DEFAULT_STYLES.accentColor,
+      });
     };
     loadInfo();
   }, []);
