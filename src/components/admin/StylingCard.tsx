@@ -213,7 +213,7 @@ const StylingCard = ({ settings, password, onSaved }: StylingCardProps) => {
             <p className="text-lg font-bold" style={{ fontFamily: previewStyles.fontFamily }}>
               Delivery Cost Calculator
             </p>
-            <p className="text-sm opacity-70">123 Main St, Milwaukee, WI 53202</p>
+            <p className="text-sm opacity-70" style={{ fontFamily: previewStyles.fontFamily }}>123 Main St, Milwaukee, WI 53202</p>
             <button
               className="w-full rounded-md px-4 py-2 text-sm font-semibold"
               style={{ backgroundColor: buttonBg, color: buttonText, fontFamily: previewStyles.fontFamily }}
@@ -221,8 +221,8 @@ const StylingCard = ({ settings, password, onSaved }: StylingCardProps) => {
               Get Delivery Quote
             </button>
             <div className="flex justify-between items-center pt-2 border-t" style={{ borderColor: `${accentColor}33` }}>
-              <span className="text-sm font-bold">Total Cost</span>
-              <span className="text-xl font-bold font-mono" style={{ color: accentColor }}>$125.00</span>
+              <span className="text-sm font-bold" style={{ fontFamily: previewStyles.fontFamily }}>Total Cost</span>
+              <span className="text-xl font-bold" style={{ color: accentColor, fontFamily: previewStyles.fontFamily }}>$125.00</span>
             </div>
           </div>
         </div>
