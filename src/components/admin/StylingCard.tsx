@@ -67,7 +67,21 @@ const StylingCard = ({ settings, password, onSaved }: StylingCardProps) => {
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
-  const getValue = (s: AppSetting) => edits[s.key] ?? s.value;
+  // Dynamically load selected Google Font
+  const currentFont = getValue(styleSettings.find((s) => s.key === "style_font") || { key: "style_font", value: DEFAULTS.style_font } as AppSetting);
+  
+  useEffect(() => {
+    if (!currentFont) return;
+    const fontId = `google-font-${currentFont.replace(/\s+/g, '-').toLowerCase()}`;
+    if (document.getElementById(fontId)) return;
+    const link = document.createElement('link');
+    link.id = fontId;
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(currentFont)}:wght@400;500;600;700&display=swap`;
+    document.head.appendChild(link);
+  }, [currentFont]);
+
+  function getValue(s: AppSetting) { return edits[s.key] ?? s.value; }
   const isDirty = (s: AppSetting) => edits[s.key] !== undefined && edits[s.key] !== s.value;
 
   const handleChange = (key: string, value: string) => {
