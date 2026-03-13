@@ -41,6 +41,21 @@ const FONT_OPTIONS = [
   "Nunito",
   "Raleway",
   "Source Sans 3",
+  "DM Sans",
+  "Outfit",
+  "Manrope",
+  "Plus Jakarta Sans",
+  "Sora",
+  "Urbanist",
+  "Figtree",
+  "Geist",
+  "Bricolage Grotesque",
+  "Red Hat Display",
+  "Instrument Sans",
+  "General Sans",
+  "Satoshi",
+  "Work Sans",
+  "Lexend",
 ];
 
 function isColor(key: string) {
