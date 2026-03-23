@@ -75,6 +75,7 @@ const DEFAULT_STYLES: StyleConfig = {
 const ShippingCostCalculator = () => {
   const [destination, setDestination] = useState("");
   const [loading, setLoading] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<DriveTimeQuoteResponse | null>(null);
   const [originLabel, setOriginLabel] = useState("Menomonee Falls, WI 53051");
@@ -115,6 +116,7 @@ const ShippingCostCalculator = () => {
         buttonTextColor: settingsMap.style_button_text_color || DEFAULT_STYLES.buttonTextColor,
         accentColor: settingsMap.style_accent_color || DEFAULT_STYLES.accentColor,
       });
+      setSettingsLoaded(true);
     };
     loadInfo();
   }, []);
@@ -186,6 +188,8 @@ const ShippingCostCalculator = () => {
   };
 
   const fontFamily = `'${styles.font}', sans-serif`;
+
+  if (!settingsLoaded) return null;
 
   return (
     <Card className="border-2" style={{ backgroundColor: styles.bgColor, color: styles.textColor, fontFamily }}>
