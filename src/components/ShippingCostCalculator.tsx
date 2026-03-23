@@ -116,6 +116,7 @@ const ShippingCostCalculator = () => {
         buttonTextColor: settingsMap.style_button_text_color || DEFAULT_STYLES.buttonTextColor,
         accentColor: settingsMap.style_accent_color || DEFAULT_STYLES.accentColor,
       });
+      setSettingsLoaded(true);
     };
     loadInfo();
   }, []);
