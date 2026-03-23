@@ -75,6 +75,7 @@ const DEFAULT_STYLES: StyleConfig = {
 const ShippingCostCalculator = () => {
   const [destination, setDestination] = useState("");
   const [loading, setLoading] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<DriveTimeQuoteResponse | null>(null);
   const [originLabel, setOriginLabel] = useState("Menomonee Falls, WI 53051");

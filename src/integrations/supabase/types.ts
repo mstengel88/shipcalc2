@@ -86,6 +86,33 @@ export type Database = {
         }
         Relationships: []
       }
+      shipping_material_rules: {
+        Row: {
+          is_active: boolean
+          material_name: string
+          prefix: string
+          sort_order: number
+          truck_capacity: number
+          updated_at: string
+        }
+        Insert: {
+          is_active?: boolean
+          material_name: string
+          prefix: string
+          sort_order?: number
+          truck_capacity: number
+          updated_at?: string
+        }
+        Update: {
+          is_active?: boolean
+          material_name?: string
+          prefix?: string
+          sort_order?: number
+          truck_capacity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shopify_app_settings: {
         Row: {
           enable_calculated_rates: boolean | null
