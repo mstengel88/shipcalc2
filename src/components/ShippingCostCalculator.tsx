@@ -189,6 +189,8 @@ const ShippingCostCalculator = () => {
 
   const fontFamily = `'${styles.font}', sans-serif`;
 
+  if (!settingsLoaded) return null;
+
   return (
     <Card className="border-2" style={{ backgroundColor: styles.bgColor, color: styles.textColor, fontFamily }}>
       <CardHeader className="border-b" style={{ borderColor: `${styles.accentColor}22`, backgroundColor: `${styles.bgColor}ee` }}>
