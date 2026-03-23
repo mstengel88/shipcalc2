@@ -137,6 +137,7 @@ const ShippingCostCalculator = () => {
   }, []);
 
   useEffect(() => {
+    if (!settingsLoaded) return;
     let cancelled = false;
 
     loadGoogleMapsScript().then(() => {
@@ -162,7 +163,7 @@ const ShippingCostCalculator = () => {
     }).catch(console.error);
 
     return () => { cancelled = true; };
-  }, [doCalculate]);
+  }, [doCalculate, settingsLoaded]);
 
   const handleCalculate = async () => {
     const addr = selectedAddressRef.current || destination.trim();
