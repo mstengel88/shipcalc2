@@ -137,6 +137,7 @@ const ShippingCostCalculator = () => {
   }, []);
 
   useEffect(() => {
+    if (!settingsLoaded) return;
     let cancelled = false;
 
     loadGoogleMapsScript().then(() => {
