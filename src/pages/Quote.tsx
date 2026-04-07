@@ -157,7 +157,7 @@ const Quote = () => {
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="dark min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-sm border-2">
           <CardHeader className="text-center">
             <Lock className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
@@ -186,7 +186,7 @@ const Quote = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 print:p-0 print:bg-white">
+    <div className="dark min-h-screen bg-background p-4 print:p-0 print:bg-white">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between print:hidden">
