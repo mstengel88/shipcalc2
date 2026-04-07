@@ -115,29 +115,42 @@ serve(async (req) => {
 
     switch (action) {
       case "products": {
-        const limit = parseInt(url.searchParams.get("limit") || "50", 10);
-        const data = await adminQuery(`
-           query Products($first: Int!) {
-            products(first: $first) {
-              edges {
-                node {
-                  id
-                  title
-                  vendor
-                  productType
-                  tags
-                  variants(first: 100) {
-                    edges {
-                      node {
-                        id
-                        title
-                        price
-                        sku
-                        inventoryItem {
-                          measurement {
-                            weight {
-                              value
-                              unit
+        // Paginate through ALL products (250 per page max)
+        const allProducts: any[] = [];
+        let hasNextPage = true;
+        let cursor: string | null = null;
+
+        while (hasNextPage) {
+          const variables: Record<string, unknown> = { first: 250 };
+          if (cursor) variables.after = cursor;
+
+          const data = await adminQuery(`
+            query Products($first: Int!, $after: String) {
+              products(first: $first, after: $after) {
+                pageInfo {
+                  hasNextPage
+                }
+                edges {
+                  cursor
+                  node {
+                    id
+                    title
+                    vendor
+                    productType
+                    tags
+                    variants(first: 100) {
+                      edges {
+                        node {
+                          id
+                          title
+                          price
+                          sku
+                          inventoryItem {
+                            measurement {
+                              weight {
+                                value
+                                unit
+                              }
                             }
                           }
                         }
@@ -147,33 +160,42 @@ serve(async (req) => {
                 }
               }
             }
+          `, variables);
+
+          const edges = data.products.edges;
+          for (const edge of edges) {
+            const node = edge.node;
+            allProducts.push({
+              id: extractGid(node.id),
+              title: node.title,
+              vendor: node.vendor || "",
+              product_type: node.productType,
+              tags: node.tags.join(", "),
+              variants: node.variants.edges.map((ve: any) => {
+                const w = ve.node.inventoryItem?.measurement?.weight;
+                return {
+                  id: extractGid(ve.node.id),
+                  title: ve.node.title,
+                  price: ve.node.price,
+                  weight: w?.value || 0,
+                  weight_unit: (w?.unit || "POUNDS").toLowerCase(),
+                  sku: ve.node.sku || "",
+                };
+              }),
+            });
           }
-        `, { first: Math.min(limit, 250) });
 
-        // Transform GraphQL response to match our existing interface
-        const products = data.products.edges.map((edge: any) => {
-          const node = edge.node;
-          return {
-            id: extractGid(node.id),
-            title: node.title,
-            vendor: node.vendor || "",
-            product_type: node.productType,
-            tags: node.tags.join(", "),
-            variants: node.variants.edges.map((ve: any) => {
-              const w = ve.node.inventoryItem?.measurement?.weight;
-              return {
-                id: extractGid(ve.node.id),
-                title: ve.node.title,
-                price: ve.node.price,
-                weight: w?.value || 0,
-                weight_unit: (w?.unit || "POUNDS").toLowerCase(),
-                sku: ve.node.sku || "",
-              };
-            }),
-          };
-        });
+          hasNextPage = data.products.pageInfo.hasNextPage;
+          if (edges.length > 0) {
+            cursor = edges[edges.length - 1].cursor;
+          } else {
+            hasNextPage = false;
+          }
+        }
 
-        return new Response(JSON.stringify({ products }), {
+        console.log(`Fetched ${allProducts.length} total products from Shopify`);
+
+        return new Response(JSON.stringify({ products: allProducts }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

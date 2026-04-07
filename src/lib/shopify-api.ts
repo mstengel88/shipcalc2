@@ -65,8 +65,8 @@ async function callShopifyApi(action: string, params?: Record<string, string>, b
   return res.json();
 }
 
-export async function fetchShopifyProducts(limit = 50): Promise<ShopifyProduct[]> {
-  const data = await callShopifyApi("products", { limit: String(limit) });
+export async function fetchShopifyProducts(): Promise<ShopifyProduct[]> {
+  const data = await callShopifyApi("products");
   return data.products || [];
 }
 
