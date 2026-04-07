@@ -354,6 +354,10 @@ const Quote = () => {
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Delivery</h3>
                     <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Origin</span>
+                      <span className="font-mono text-right max-w-[60%]">{quote.origin}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Destination</span>
                       <span className="font-mono text-right max-w-[60%]">{quote.destination}</span>
                     </div>
