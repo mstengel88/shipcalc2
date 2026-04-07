@@ -298,7 +298,7 @@ const Quote = () => {
                     placeholder="Start typing an address..."
                     defaultValue={destination}
                     onChange={(e) => { setDestination(e.target.value); selectedAddressRef.current = ""; }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
                   />
                 </div>
                 <Button
