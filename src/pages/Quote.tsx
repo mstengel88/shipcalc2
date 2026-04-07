@@ -107,33 +107,41 @@ const Quote = () => {
     }
   }, [selectedProductId]);
 
-  // Google Places autocomplete — use a small delay to ensure DOM is ready after auth
+  // Google Places autocomplete — wait until the address input is actually rendered
   useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated || loadingProducts || products.length === 0) return;
     let cancelled = false;
 
     const init = () => {
-      loadGoogleMapsScript().then(() => {
-        if (cancelled || !inputRef.current || autocompleteRef.current) return;
-        autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
-          types: ["address"],
-          componentRestrictions: { country: "us" },
-          fields: ["formatted_address"],
-        });
-        autocompleteRef.current.addListener("place_changed", () => {
-          const place = autocompleteRef.current.getPlace();
-          if (place?.formatted_address) {
-            selectedAddressRef.current = place.formatted_address;
-            setDestination(place.formatted_address);
-          }
-        });
-      }).catch(console.error);
+      if (!inputRef.current || autocompleteRef.current) return;
+
+      loadGoogleMapsScript()
+        .then(() => {
+          if (cancelled || !inputRef.current || autocompleteRef.current) return;
+
+          autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+            types: ["address"],
+            componentRestrictions: { country: "us" },
+            fields: ["formatted_address"],
+          });
+
+          autocompleteRef.current.addListener("place_changed", () => {
+            const place = autocompleteRef.current.getPlace();
+            if (place?.formatted_address) {
+              selectedAddressRef.current = place.formatted_address;
+              setDestination(place.formatted_address);
+            }
+          });
+        })
+        .catch(console.error);
     };
 
-    // Defer to next tick so the authenticated UI has rendered and inputRef is populated
-    const timer = setTimeout(init, 100);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [authenticated]);
+    const frame = window.requestAnimationFrame(init);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
+  }, [authenticated, loadingProducts, products.length]);
 
   const handleGetQuote = async () => {
     const addr = selectedAddressRef.current || destination.trim();
