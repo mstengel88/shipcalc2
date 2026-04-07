@@ -157,7 +157,7 @@ const Quote = () => {
 
   if (!authenticated) {
     return (
-      <div className="dark min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="dark min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'hsl(0 0% 0%)', color: 'hsl(0 0% 100%)' }}>
         <Card className="w-full max-w-sm border-2">
           <CardHeader className="text-center">
             <Lock className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
@@ -186,7 +186,7 @@ const Quote = () => {
   }
 
   return (
-    <div className="dark min-h-screen bg-background p-4 print:p-0 print:bg-white">
+    <div className="dark min-h-screen p-4 print:p-0 print:bg-white quote-page" style={{ backgroundColor: 'hsl(0 0% 0%)', color: 'hsl(0 0% 100%)' }}>
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between print:hidden">
@@ -298,7 +298,7 @@ const Quote = () => {
                     placeholder="Start typing an address..."
                     defaultValue={destination}
                     onChange={(e) => { setDestination(e.target.value); selectedAddressRef.current = ""; }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
                   />
                 </div>
                 <Button

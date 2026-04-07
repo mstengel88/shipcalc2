@@ -113,3 +113,42 @@
     font-family: var(--font-mono);
   }
 }
+
+/* Quote page overrides — white text instead of green */
+.quote-page,
+.quote-page .dark {
+  --foreground: 0 0% 100%;
+  --card-foreground: 0 0% 100%;
+  --popover-foreground: 0 0% 100%;
+  --muted-foreground: 0 0% 70%;
+  --secondary-foreground: 0 0% 100%;
+  --destructive-foreground: 0 0% 100%;
+}
+
+/* Google Places autocomplete dropdown dark styling */
+.quote-page ~ .pac-container,
+body .pac-container {
+  background-color: hsl(0 0% 10%);
+  border: 1px solid hsl(0 0% 20%);
+  color: white;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.quote-page ~ .pac-container .pac-item,
+body .pac-container .pac-item {
+  border-top-color: hsl(0 0% 15%);
+  color: hsl(0 0% 85%);
+  padding: 6px 12px;
+}
+.quote-page ~ .pac-container .pac-item:hover,
+body .pac-container .pac-item:hover {
+  background-color: hsl(0 0% 15%);
+}
+.quote-page ~ .pac-container .pac-item-query,
+body .pac-container .pac-item-query {
+  color: white;
+}
+.quote-page ~ .pac-container .pac-matched,
+body .pac-container .pac-matched {
+  color: hsl(25 85% 50%);
+  font-weight: 600;
+}
