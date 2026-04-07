@@ -186,7 +186,7 @@ const Quote = () => {
   }
 
   return (
-    <div className="dark min-h-screen bg-background p-4 print:p-0 print:bg-white">
+    <div className="dark min-h-screen p-4 print:p-0 print:bg-white quote-page" style={{ backgroundColor: 'hsl(0 0% 0%)', color: 'hsl(0 0% 100%)' }}>
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between print:hidden">
