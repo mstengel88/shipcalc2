@@ -86,6 +86,66 @@ export type Database = {
         }
         Relationships: []
       }
+      Session: {
+        Row: {
+          accessToken: string
+          accountOwner: boolean | null
+          collaborator: boolean | null
+          email: string | null
+          emailVerified: boolean | null
+          expires: string | null
+          firstName: string | null
+          id: string
+          isOnline: boolean
+          lastName: string | null
+          locale: string | null
+          refreshToken: string | null
+          refreshTokenExpires: string | null
+          scope: string | null
+          shop: string
+          state: string
+          userId: number | null
+        }
+        Insert: {
+          accessToken: string
+          accountOwner?: boolean | null
+          collaborator?: boolean | null
+          email?: string | null
+          emailVerified?: boolean | null
+          expires?: string | null
+          firstName?: string | null
+          id: string
+          isOnline?: boolean
+          lastName?: string | null
+          locale?: string | null
+          refreshToken?: string | null
+          refreshTokenExpires?: string | null
+          scope?: string | null
+          shop: string
+          state: string
+          userId?: number | null
+        }
+        Update: {
+          accessToken?: string
+          accountOwner?: boolean | null
+          collaborator?: boolean | null
+          email?: string | null
+          emailVerified?: boolean | null
+          expires?: string | null
+          firstName?: string | null
+          id?: string
+          isOnline?: boolean
+          lastName?: string | null
+          locale?: string | null
+          refreshToken?: string | null
+          refreshTokenExpires?: string | null
+          scope?: string | null
+          shop?: string
+          state?: string
+          userId?: number | null
+        }
+        Relationships: []
+      }
       shipping_material_rules: {
         Row: {
           is_active: boolean
@@ -94,6 +154,7 @@ export type Database = {
           sort_order: number
           truck_capacity: number
           updated_at: string
+          vendor_source: string | null
         }
         Insert: {
           is_active?: boolean
@@ -102,6 +163,7 @@ export type Database = {
           sort_order?: number
           truck_capacity: number
           updated_at?: string
+          vendor_source?: string | null
         }
         Update: {
           is_active?: boolean
@@ -110,6 +172,7 @@ export type Database = {
           sort_order?: number
           truck_capacity?: number
           updated_at?: string
+          vendor_source?: string | null
         }
         Relationships: []
       }
