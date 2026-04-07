@@ -157,7 +157,7 @@ const Quote = () => {
 
   if (!authenticated) {
     return (
-      <div className="dark min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="dark min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'hsl(0 0% 0%)', color: 'hsl(0 0% 100%)' }}>
         <Card className="w-full max-w-sm border-2">
           <CardHeader className="text-center">
             <Lock className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
