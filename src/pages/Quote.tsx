@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,29 +24,7 @@ import {
   type ShopifyProduct,
   type DriveTimeQuoteResponse,
 } from "@/lib/shopify-api";
-
-declare global {
-  interface Window {
-    google: any;
-  }
-}
-
-function loadGoogleMapsScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.google?.maps?.places) { resolve(); return; }
-    const existing = document.getElementById("google-maps-script");
-    if (existing) { existing.addEventListener("load", () => resolve()); return; }
-    const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    if (!key) { reject(new Error("Missing VITE_GOOGLE_MAPS_API_KEY")); return; }
-    const script = document.createElement("script");
-    script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps"));
-    document.head.appendChild(script);
-  });
-}
+import { AddressAutocompleteInput } from "@/components/AddressAutocompleteInput";
 
 const Quote = () => {
   // Auth state
@@ -65,8 +43,6 @@ const Quote = () => {
 
   // Address state
   const [destination, setDestination] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<any>(null);
   const selectedAddressRef = useRef("");
 
   // Quote state
@@ -106,42 +82,6 @@ const Quote = () => {
       setSelectedVariantId(String(variants[0].id));
     }
   }, [selectedProductId]);
-
-  // Google Places autocomplete — wait until the address input is actually rendered
-  useEffect(() => {
-    if (!authenticated || loadingProducts || products.length === 0) return;
-    let cancelled = false;
-
-    const init = () => {
-      if (!inputRef.current || autocompleteRef.current) return;
-
-      loadGoogleMapsScript()
-        .then(() => {
-          if (cancelled || !inputRef.current || autocompleteRef.current) return;
-
-          autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
-            types: ["address"],
-            componentRestrictions: { country: "us" },
-            fields: ["formatted_address"],
-          });
-
-          autocompleteRef.current.addListener("place_changed", () => {
-            const place = autocompleteRef.current.getPlace();
-            if (place?.formatted_address) {
-              selectedAddressRef.current = place.formatted_address;
-              setDestination(place.formatted_address);
-            }
-          });
-        })
-        .catch(console.error);
-    };
-
-    const frame = window.requestAnimationFrame(init);
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(frame);
-    };
-  }, [authenticated, loadingProducts, products.length]);
 
   const handleGetQuote = async () => {
     const addr = selectedAddressRef.current || destination.trim();
@@ -307,11 +247,16 @@ const Quote = () => {
                   <Label className="flex items-center gap-2 text-sm font-medium">
                     <MapPin className="h-3.5 w-3.5 text-primary" /> Customer Delivery Address
                   </Label>
-                  <input
-                    ref={inputRef}
+                  <AddressAutocompleteInput
+                    value={destination}
                     placeholder="Start typing an address..."
-                    defaultValue={destination}
-                    onChange={(e) => { setDestination(e.target.value); selectedAddressRef.current = ""; }}
+                    onValueChange={(value) => {
+                      setDestination(value);
+                      selectedAddressRef.current = "";
+                    }}
+                    onAddressSelect={(address) => {
+                      selectedAddressRef.current = address;
+                    }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
                   />
                 </div>
