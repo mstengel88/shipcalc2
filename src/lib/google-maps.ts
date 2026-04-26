@@ -5,12 +5,9 @@ declare global {
 }
 
 let googleMapsScriptPromise: Promise<void> | null = null;
+let googlePlacesPromise: Promise<any> | null = null;
 
-export function loadGoogleMapsScript(): Promise<void> {
-  if (window.google?.maps?.places) {
-    return Promise.resolve();
-  }
-
+function loadGoogleMapsBaseScript(): Promise<void> {
   if (googleMapsScriptPromise) {
     return googleMapsScriptPromise;
   }
@@ -32,7 +29,7 @@ export function loadGoogleMapsScript(): Promise<void> {
 
     const script = document.createElement("script");
     script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&v=weekly`;
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("Failed to load Google Maps"));
@@ -40,4 +37,35 @@ export function loadGoogleMapsScript(): Promise<void> {
   });
 
   return googleMapsScriptPromise;
+}
+
+export function loadGoogleMapsScript(): Promise<any> {
+  if (window.google?.maps?.places) {
+    return Promise.resolve(window.google.maps.places);
+  }
+
+  if (googlePlacesPromise) {
+    return googlePlacesPromise;
+  }
+
+  googlePlacesPromise = loadGoogleMapsBaseScript()
+    .then(async () => {
+      if (window.google?.maps?.importLibrary) {
+        return window.google.maps.importLibrary("places");
+      }
+
+      if (window.google?.maps?.places) {
+        return window.google.maps.places;
+      }
+
+      if (!window.google?.maps?.places) {
+        throw new Error("Google Places library did not load");
+      }
+    })
+    .catch((error) => {
+      googlePlacesPromise = null;
+      throw error;
+    });
+
+  return googlePlacesPromise;
 }

@@ -14,6 +14,13 @@ interface AddressAutocompleteInputProps {
 
 const MIN_QUERY_LENGTH = 3;
 
+interface AddressPrediction {
+  id: string;
+  description: string;
+  mainText: string;
+  secondaryText?: string;
+}
+
 export function AddressAutocompleteInput({
   value,
   onValueChange,
@@ -25,8 +32,8 @@ export function AddressAutocompleteInput({
 }: AddressAutocompleteInputProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
-  const serviceRef = useRef<any>(null);
-  const [predictions, setPredictions] = useState<any[]>([]);
+  const serviceRef = useRef<null | { getPredictions: (query: string) => Promise<AddressPrediction[]> }>(null);
+  const [predictions, setPredictions] = useState<AddressPrediction[]>([]);
   const [open, setOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [placesReady, setPlacesReady] = useState(false);
@@ -35,9 +42,64 @@ export function AddressAutocompleteInput({
     let cancelled = false;
 
     loadGoogleMapsScript()
-      .then(() => {
+      .then((places) => {
         if (cancelled || serviceRef.current) return;
-        serviceRef.current = new window.google.maps.places.AutocompleteService();
+
+        if (places.AutocompleteService) {
+          const autocompleteService = new places.AutocompleteService();
+          serviceRef.current = {
+            getPredictions(query: string) {
+              return new Promise((resolve) => {
+                autocompleteService.getPlacePredictions(
+                  {
+                    input: query,
+                    types: ["address"],
+                    componentRestrictions: { country: "us" },
+                  },
+                  (results: any[] | null, status: string) => {
+                    if (status !== places.PlacesServiceStatus.OK || !results?.length) {
+                      resolve([]);
+                      return;
+                    }
+
+                    resolve(
+                      results.map((prediction) => ({
+                        id: prediction.place_id,
+                        description: prediction.description,
+                        mainText: prediction.structured_formatting?.main_text || prediction.description,
+                        secondaryText: prediction.structured_formatting?.secondary_text,
+                      })),
+                    );
+                  },
+                );
+              });
+            },
+          };
+        } else if (places.AutocompleteSuggestion) {
+          serviceRef.current = {
+            async getPredictions(query: string) {
+              const { suggestions } = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+                input: query,
+                includedRegionCodes: ["us"],
+                region: "us",
+              });
+
+              return suggestions
+                .map((suggestion: any) => suggestion.placePrediction)
+                .filter(Boolean)
+                .map((prediction: any) => ({
+                  id: prediction.placeId,
+                  description: prediction.text?.text || "",
+                  mainText: prediction.mainText?.text || prediction.text?.text || "",
+                  secondaryText: prediction.secondaryText?.text,
+                }))
+                .filter((prediction: AddressPrediction) => prediction.description);
+            },
+          };
+        } else {
+          throw new Error("Google Places autocomplete is unavailable");
+        }
+
         setPlacesReady(true);
       })
       .catch(console.error);
@@ -59,16 +121,12 @@ export function AddressAutocompleteInput({
     }
 
     const timeout = window.setTimeout(() => {
-      serviceRef.current.getPlacePredictions(
-        {
-          input: query,
-          types: ["address"],
-          componentRestrictions: { country: "us" },
-        },
-        (results: any[] | null, status: string) => {
+      serviceRef.current
+        ?.getPredictions(query)
+        .then((results) => {
           if (requestId !== requestIdRef.current) return;
 
-          if (status !== window.google.maps.places.PlacesServiceStatus.OK || !results?.length) {
+          if (!results.length) {
             setPredictions([]);
             setOpen(false);
             setHighlightedIndex(-1);
@@ -78,8 +136,14 @@ export function AddressAutocompleteInput({
           setPredictions(results);
           setOpen(true);
           setHighlightedIndex(0);
-        },
-      );
+        })
+        .catch((error) => {
+          console.error(error);
+          if (requestId !== requestIdRef.current) return;
+          setPredictions([]);
+          setOpen(false);
+          setHighlightedIndex(-1);
+        });
     }, 250);
 
     return () => window.clearTimeout(timeout);
@@ -96,7 +160,7 @@ export function AddressAutocompleteInput({
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
-  const selectPrediction = (prediction: any) => {
+  const selectPrediction = (prediction: AddressPrediction) => {
     const address = prediction.description;
     onValueChange(address);
     onAddressSelect(address);
@@ -153,7 +217,7 @@ export function AddressAutocompleteInput({
         <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
           {predictions.map((prediction, index) => (
             <button
-              key={prediction.place_id}
+              key={prediction.id}
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectPrediction(prediction)}
@@ -161,10 +225,10 @@ export function AddressAutocompleteInput({
                 index === highlightedIndex ? "bg-muted" : "hover:bg-muted"
               }`}
             >
-              <span className="block truncate font-medium">{prediction.structured_formatting?.main_text || prediction.description}</span>
-              {prediction.structured_formatting?.secondary_text && (
+              <span className="block truncate font-medium">{prediction.mainText || prediction.description}</span>
+              {prediction.secondaryText && (
                 <span className="block truncate text-xs text-muted-foreground">
-                  {prediction.structured_formatting.secondary_text}
+                  {prediction.secondaryText}
                 </span>
               )}
             </button>
