@@ -1,8 +1,17 @@
-const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-const BASE = `https://${PROJECT_ID}.supabase.co/functions/v1/shopify-api`;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
+const SUPABASE_PUBLISHABLE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error(
+    "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY",
+  );
+}
+
+const BASE = `${SUPABASE_URL}/functions/v1/shopify-api`;
 const HEADERS = {
   "Content-Type": "application/json",
-  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  apikey: SUPABASE_PUBLISHABLE_KEY,
 };
 
 export interface OriginAddress {

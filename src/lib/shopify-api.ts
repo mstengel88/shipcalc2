@@ -39,17 +39,25 @@ export interface ShippingQuoteResponse {
   total: number;
 }
 
-const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
+const SUPABASE_PUBLISHABLE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error(
+    "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY",
+  );
+}
 
 async function callShopifyApi(action: string, params?: Record<string, string>, body?: unknown) {
   const queryParams = new URLSearchParams({ action, ...params });
-  const url = `https://${PROJECT_ID}.supabase.co/functions/v1/shopify-api?${queryParams}`;
+  const url = `${SUPABASE_URL}/functions/v1/shopify-api?${queryParams}`;
   
   const options: RequestInit = {
     method: body ? "POST" : "GET",
     headers: {
       "Content-Type": "application/json",
-      "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      "apikey": SUPABASE_PUBLISHABLE_KEY,
     },
   };
 
