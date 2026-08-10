@@ -12,9 +12,9 @@ services:
     cap_drop:
       - ALL
     networks:
-      - ghos-internal
+      - shipcalc
 
 networks:
-  ghos-internal:
+  shipcalc:
     external: true
-    name: ghos-internal
+    name: shipcalc
