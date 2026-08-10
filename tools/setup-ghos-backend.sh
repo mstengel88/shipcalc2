@@ -10,12 +10,30 @@ app_env="$app_root/.env"
 [[ -f "$app_env" ]] || touch "$app_env"
 chmod 600 "$app_env"
 
-set -a
-# shellcheck disable=SC1090
-source "$ghos_env"
-# shellcheck disable=SC1090
-source "$app_env"
-set +a
+read_env() {
+  local file="$1" key="$2" line value
+  line="$(grep -m 1 -E "^${key}=" "$file" 2>/dev/null || true)"
+  value="${line#*=}"
+  if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  printf '%s' "$value"
+}
+
+POSTGRES_USER="$(read_env "$ghos_env" POSTGRES_USER)"
+POSTGRES_DB="$(read_env "$ghos_env" POSTGRES_DB)"
+POSTGRES_PASSWORD="$(read_env "$ghos_env" POSTGRES_PASSWORD)"
+SHOPIFY_STORE_DOMAIN="$(read_env "$ghos_env" SHOPIFY_STORE_DOMAIN)"
+SHOPIFY_CLIENT_ID="$(read_env "$ghos_env" SHOPIFY_CLIENT_ID)"
+SHOPIFY_CLIENT_SECRET="$(read_env "$ghos_env" SHOPIFY_CLIENT_SECRET)"
+SHOPIFY_DRAFT_ORDER_CLIENT_ID="$(read_env "$ghos_env" SHOPIFY_DRAFT_ORDER_CLIENT_ID)"
+SHOPIFY_DRAFT_ORDER_CLIENT_SECRET="$(read_env "$ghos_env" SHOPIFY_DRAFT_ORDER_CLIENT_SECRET)"
+GOOGLE_MAPS_API_KEY="$(read_env "$ghos_env" GOOGLE_MAPS_API_KEY)"
+GOOGLE_MAPS_BROWSER_API_KEY="$(read_env "$ghos_env" GOOGLE_MAPS_BROWSER_API_KEY)"
+SHIPCALC_DB_PASSWORD="$(read_env "$app_env" SHIPCALC_DB_PASSWORD)"
+SHIPCALC_ADMIN_PASSWORD="$(read_env "$app_env" SHIPCALC_ADMIN_PASSWORD)"
 
 : "${POSTGRES_USER:?POSTGRES_USER is missing from GHOS environment}"
 : "${POSTGRES_DB:?POSTGRES_DB is missing from GHOS environment}"
@@ -49,6 +67,7 @@ if ! docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" ghos-postgres \
 fi
 
 set_env SHIPCALC_DATABASE_URL "postgresql://shipcalc:${db_password}@ghos-postgres:5432/shipcalc"
+set_env SHIPCALC_DB_PASSWORD "$db_password"
 set_env SHIPCALC_ADMIN_PASSWORD "$admin_password"
 set_env SHOPIFY_STORE_DOMAIN "${SHOPIFY_STORE_DOMAIN:-darfaz-2e.myshopify.com}"
 set_env SHOPIFY_CLIENT_ID "${SHOPIFY_CLIENT_ID:-${SHOPIFY_DRAFT_ORDER_CLIENT_ID:-}}"
