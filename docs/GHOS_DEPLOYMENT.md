@@ -27,6 +27,15 @@ curl --fail http://127.0.0.1:8085/healthz
 curl --fail http://127.0.0.1:8085/api/healthz
 ```
 
+Register both the isolated `shipcalc` database and application files with the
+existing encrypted GHOS backup system, then run an immediate backup:
+
+```bash
+sudo ./tools/register-ghos-backup.sh
+sudo systemctl start ghos-backup.service
+sudo systemctl status ghos-backup.service --no-pager -l
+```
+
 Import the current cloud data once. This operation only reads Supabase and is
 safe to repeat before cutover:
 
