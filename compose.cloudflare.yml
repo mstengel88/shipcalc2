@@ -1,0 +1,20 @@
+services:
+  shipcalc-cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ghos-shipcalc-cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${SHIPCALC_TUNNEL_TOKEN:?Set SHIPCALC_TUNNEL_TOKEN in the protected ShipCalc environment file}
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - ghos-internal
+
+networks:
+  ghos-internal:
+    external: true
+    name: ghos-internal

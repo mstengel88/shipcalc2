@@ -58,3 +58,32 @@ match the existing deployment before changing any external traffic.
 The local API provides `/api/shopify`, `/api/public-config`, and
 `/api/carrier-service`. Do not register the local carrier endpoint with Shopify
 until it has a stable HTTPS hostname and parity tests have passed.
+
+## Public tunnel cutover
+
+Create a dedicated Cloudflare Tunnel for ShipCalc. Configure its public hostname
+as `shipcalc.ghstickets.com` with service URL `http://ghos-shipcalc:80`. Store the
+tunnel token only in `/opt/ghos/apps/shipcalc2/.env`:
+
+```dotenv
+SHIPCALC_TUNNEL_TOKEN=replace-with-the-dedicated-tunnel-token
+```
+
+Start the isolated tunnel without changing the existing carrier callback:
+
+```bash
+docker compose -f compose.cloudflare.yml up -d
+docker compose -f compose.cloudflare.yml ps
+```
+
+Verify these URLs before updating Shopify:
+
+```text
+https://shipcalc.ghstickets.com/healthz
+https://shipcalc.ghstickets.com/api/healthz
+https://shipcalc.ghstickets.com/api/carrier-service
+```
+
+Only after those checks pass should the Shopify carrier service callback move
+from its current URL to
+`https://shipcalc.ghstickets.com/api/carrier-service`.
