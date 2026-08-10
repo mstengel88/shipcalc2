@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { MapPin, DollarSign, Loader2, Clock, Phone } from "lucide-react";
-import { getDriveTimeQuote, type DriveTimeQuoteResponse } from "@/lib/shopify-api";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchPublicConfig, getDriveTimeQuote, type DriveTimeQuoteResponse } from "@/lib/shopify-api";
 import { AddressAutocompleteInput } from "@/components/AddressAutocompleteInput";
 
 interface DisplayToggles {
@@ -56,14 +55,11 @@ const ShippingCostCalculator = () => {
 
   useEffect(() => {
     const loadInfo = async () => {
-      const [originRes, settingsRes] = await Promise.all([
-        supabase.from("origin_addresses").select("label, address").eq("is_active", true).limit(1).single(),
-        supabase.from("app_settings").select("key, value"),
-      ]);
-      if (originRes.data) setOriginLabel(`${originRes.data.label} — ${originRes.data.address}`);
+      const config = await fetchPublicConfig();
+      if (config.origin) setOriginLabel(`${config.origin.label} — ${config.origin.address}`);
       
       const settingsMap: Record<string, string> = {};
-      for (const s of settingsRes.data || []) settingsMap[s.key] = s.value;
+      for (const s of config.settings) settingsMap[s.key] = s.value;
       
       if (settingsMap.phone_number) setPhoneNumber(settingsMap.phone_number);
       

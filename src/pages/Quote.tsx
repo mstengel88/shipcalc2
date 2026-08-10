@@ -90,7 +90,7 @@ const Quote = () => {
     setQuote(null);
     setQuoteError(null);
     try {
-      const result = await getDriveTimeQuote({ destination: addr });
+      const result = await getDriveTimeQuote({ destination: addr, variant_id: Number(selectedVariantId) });
       setQuote(result);
     } catch (e: unknown) {
       setQuoteError(e instanceof Error ? e.message : "Failed to get quote");

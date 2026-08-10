@@ -1,29 +1,37 @@
 # ShipCalc on GHOS
 
-ShipCalc is initially deployed to the GHOS Ubuntu VM as a parallel web service on
-port `8085`. This first phase deliberately keeps the existing production Supabase
-project, Edge Functions, Shopify carrier service, and current public ShipCalc
-instance unchanged.
+ShipCalc is deployed to the GHOS Ubuntu VM as a parallel web and API service on
+port `8085`. Application settings and origin addresses live in a dedicated
+`shipcalc` database on the existing GHOS PostgreSQL container. The cloud Supabase
+project and current public ShipCalc remain unchanged until final cutover.
 
 ## Configuration
 
-Copy `.env.example` to `.env` on the VM and populate the existing production
-public client configuration. The `.env` file must remain untracked and readable
-only by the deployment account.
+Copy `.env.example` to `.env` on the VM and populate the browser-restricted Google
+Maps key plus the server-only database, Shopify, Google Maps, and administrator
+credentials. The `.env` file must remain untracked and readable only by the
+deployment account.
 
-The Vite variables are embedded into the browser bundle during the image build.
-They are public client configuration, not server credentials. Shopify client
-secrets, the Supabase service-role key, and the administrator password must not be
-placed in this file; they remain protected in the existing Supabase Edge Function
-configuration until the backend migration phase.
+Only `VITE_GOOGLE_MAPS_API_KEY` is embedded in the browser bundle. Restrict that
+key by website origin. All other credentials are injected only into the API
+container and must never be committed.
 
 ## Deploy and verify
 
 ```bash
+./tools/setup-ghos-backend.sh
 docker compose -f compose.ghos.yml config --quiet
 docker compose -f compose.ghos.yml up -d --build
 docker compose -f compose.ghos.yml ps
 curl --fail http://127.0.0.1:8085/healthz
+curl --fail http://127.0.0.1:8085/api/healthz
+```
+
+Import the current cloud data once. This operation only reads Supabase and is
+safe to repeat before cutover:
+
+```bash
+docker compose -f compose.ghos.yml --profile migration run --rm shipcalc-import
 ```
 
 Verify `/`, `/quote`, and `/admin` over the LAN or Tailscale address. Confirm that
@@ -34,10 +42,10 @@ match the existing deployment before changing any external traffic.
 
 - Do not change the Shopify carrier callback during this phase.
 - Do not remove or stop the existing ShipCalc instance.
-- Do not migrate or modify production Supabase data during this phase.
+- Importing reads cloud Supabase data but does not modify the cloud project.
 - Record a successful browser parity test before configuring a hostname or tunnel.
 - Rollback is simply stopping `ghos-shipcalc`; the production system is unaffected.
 
-The later backend phase will migrate the two application tables and the
-`shopify-api` and `carrier-service` functions, validate them against a test
-callback, and only then schedule the Shopify carrier-service cutover.
+The local API provides `/api/shopify`, `/api/public-config`, and
+`/api/carrier-service`. Do not register the local carrier endpoint with Shopify
+until it has a stable HTTPS hostname and parity tests have passed.

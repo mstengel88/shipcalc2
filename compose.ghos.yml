@@ -3,13 +3,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: web
       args:
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?VITE_SUPABASE_URL is required}
-        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:?VITE_SUPABASE_PUBLISHABLE_KEY is required}
+        VITE_SHIPCALC_API_URL: /api
         VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:?VITE_GOOGLE_MAPS_API_KEY is required}
     image: ghos-shipcalc:local
     container_name: ghos-shipcalc
     restart: unless-stopped
+    depends_on:
+      shipcalc-api:
+        condition: service_healthy
     ports:
       - "${SHIPCALC_PORT:-8085}:80"
     healthcheck:
@@ -18,4 +21,52 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+    networks:
+      - shipcalc
 
+  shipcalc-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: ghos-shipcalc-api:local
+    container_name: ghos-shipcalc-api
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      DATABASE_URL: ${SHIPCALC_DATABASE_URL:?SHIPCALC_DATABASE_URL is required}
+      SHOPIFY_STORE_DOMAIN: ${SHOPIFY_STORE_DOMAIN:?SHOPIFY_STORE_DOMAIN is required}
+      SHOPIFY_CLIENT_ID: ${SHOPIFY_CLIENT_ID:?SHOPIFY_CLIENT_ID is required}
+      SHOPIFY_CLIENT_SECRET: ${SHOPIFY_CLIENT_SECRET:?SHOPIFY_CLIENT_SECRET is required}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:?GOOGLE_MAPS_API_KEY is required}
+      ADMIN_PASSWORD: ${SHIPCALC_ADMIN_PASSWORD:?SHIPCALC_ADMIN_PASSWORD is required}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    networks:
+      - shipcalc
+      - ghos-internal
+
+  shipcalc-import:
+    profiles: ["migration"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: ghos-shipcalc-api:local
+    environment:
+      DATABASE_URL: ${SHIPCALC_DATABASE_URL:?SHIPCALC_DATABASE_URL is required}
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?VITE_SUPABASE_URL is required for migration}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:?VITE_SUPABASE_PUBLISHABLE_KEY is required for migration}
+    command: ["node", "server/import-cloud.mjs"]
+    networks:
+      - ghos-internal
+
+networks:
+  shipcalc:
+    name: shipcalc
+  ghos-internal:
+    external: true

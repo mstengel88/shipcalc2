@@ -1,5 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
-
 export interface ShopifyProduct {
   id: number;
   title: string;
@@ -39,25 +37,16 @@ export interface ShippingQuoteResponse {
   total: number;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error(
-    "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY",
-  );
-}
+const API_BASE = (import.meta.env.VITE_SHIPCALC_API_URL || "/api").replace(/\/+$/, "");
 
 async function callShopifyApi(action: string, params?: Record<string, string>, body?: unknown) {
   const queryParams = new URLSearchParams({ action, ...params });
-  const url = `${SUPABASE_URL}/functions/v1/shopify-api?${queryParams}`;
+  const url = `${API_BASE}/shopify?${queryParams}`;
   
   const options: RequestInit = {
     method: body ? "POST" : "GET",
     headers: {
       "Content-Type": "application/json",
-      "apikey": SUPABASE_PUBLISHABLE_KEY,
     },
   };
 
@@ -89,6 +78,7 @@ export async function getShippingQuote(request: ShippingQuoteRequest): Promise<S
 
 export interface DriveTimeQuoteRequest {
   destination: string;
+  variant_id?: number;
 }
 
 export interface DriveTimeQuoteResponse {
@@ -106,4 +96,15 @@ export interface DriveTimeQuoteResponse {
 
 export async function getDriveTimeQuote(request: DriveTimeQuoteRequest): Promise<DriveTimeQuoteResponse> {
   return callShopifyApi("drive_time_quote", undefined, request);
+}
+
+export interface PublicConfig {
+  origin: { label: string; address: string } | null;
+  settings: Array<{ key: string; value: string }>;
+}
+
+export async function fetchPublicConfig(): Promise<PublicConfig> {
+  const response = await fetch(`${API_BASE}/public-config`);
+  if (!response.ok) throw new Error("Unable to load calculator configuration");
+  return response.json();
 }
