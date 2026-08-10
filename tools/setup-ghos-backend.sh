@@ -51,13 +51,17 @@ set_env() {
 db_password="${SHIPCALC_DB_PASSWORD:-$(openssl rand -hex 24)}"
 admin_password="${SHIPCALC_ADMIN_PASSWORD:-$(openssl rand -hex 24)}"
 
-docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" ghos-postgres \
-  psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  -v role="shipcalc" -v pass="$db_password" <<'SQL'
-SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'role', :'pass')
-WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'role') \gexec
-SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'role', :'pass') \gexec
-SQL
+if ! docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" ghos-postgres \
+  psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "SELECT 1 FROM pg_roles WHERE rolname='shipcalc'" | grep -qx 1; then
+  docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" ghos-postgres \
+    psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    -c "CREATE ROLE shipcalc LOGIN PASSWORD '$db_password'"
+else
+  docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" ghos-postgres \
+    psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    -c "ALTER ROLE shipcalc WITH LOGIN PASSWORD '$db_password'"
+fi
 
 if ! docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" ghos-postgres \
   psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
